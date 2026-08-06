@@ -40,7 +40,8 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-RUN chmod +x ./scripts/start.sh \
+RUN sed -i 's/\r$//' ./scripts/start.sh \
+  && chmod +x ./scripts/start.sh \
   && chown -R nextjs:nodejs /app
 
 USER nextjs
