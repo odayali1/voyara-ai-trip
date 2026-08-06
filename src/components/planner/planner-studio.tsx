@@ -6,14 +6,17 @@ import { Send, Save, Share2, CloudSun, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
 import { TripMap, type MapStop } from "@/components/map/trip-map";
 import { ItineraryPanel } from "@/components/planner/itinerary-panel";
 import { PricePanel } from "@/components/planner/price-panel";
+import { ChatMarkdown } from "@/components/chat/chat-markdown";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import type { PriceOffer } from "@/lib/mock-prices";
 import type { WeatherDay } from "@/lib/geo";
 import { buildPromptFromHint } from "@/lib/prompt-hint";
 import { destinationFocus } from "@/lib/destination-focus";
+import { destinationHeroImage } from "@/lib/place-images";
 import { textDirection } from "@/lib/has-arabic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -65,6 +68,8 @@ export function PlannerStudio({
   const [mobileTab, setMobileTab] = useState<"chat" | "map" | "plan">("chat");
   const autoStarted = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottom = useRef(true);
 
   const mapStops: MapStop[] = useMemo(() => {
     if (!plan) return [];
@@ -91,8 +96,16 @@ export function PlannerStudio({
   }, [plan?.destination, destinationHint, input, messages]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!stickToBottom.current) return;
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
+
+  function onChatScroll() {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottom.current = distanceFromBottom < 80;
+  }
 
   useEffect(() => {
     if (initialPlan || initialMessages.length > 0) return;
@@ -189,6 +202,7 @@ export function PlannerStudio({
     setStage("chatting");
     setMobileTab("chat");
     setInput("");
+    stickToBottom.current = true;
     const userMsg: ChatMsg = {
       id: crypto.randomUUID(),
       role: "user",
@@ -334,6 +348,10 @@ export function PlannerStudio({
     toast.success("Share link copied");
   }
 
+  const heroPhoto = destinationHeroImage(
+    plan?.destination || destinationHint || "travel"
+  );
+
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
       {/* Full-width toolbar — NOT inside the 12-col grid */}
@@ -407,16 +425,30 @@ export function PlannerStudio({
             </Button>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <div
+            ref={chatScrollRef}
+            onScroll={onChatScroll}
+            className="flex-1 space-y-3 overflow-y-auto p-4"
+          >
             {messages.length === 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-3"
               >
-                <p className="text-sm text-[var(--ink)]">
-                  Tell Voyara the vibe — nature in Jordan, food in Tokyo…
-                </p>
+                <div className="relative h-28 overflow-hidden rounded-2xl">
+                  <Image
+                    src={heroPhoto.url}
+                    alt={heroPhoto.alt}
+                    fill
+                    className="object-cover"
+                    sizes="400px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+                  <p className="absolute bottom-3 start-3 end-3 text-sm text-white">
+                    Tell Voyara the vibe — nature in Jordan, food in Tokyo…
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_PROMPTS.map((prompt) => (
                     <button
@@ -442,13 +474,21 @@ export function PlannerStudio({
                   animate={{ opacity: 1, y: 0 }}
                   dir={dir}
                   className={cn(
-                    "max-w-[94%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm",
+                    "max-w-[94%] rounded-2xl px-3.5 py-2.5 shadow-sm",
                     m.role === "user"
-                      ? "ms-auto bg-[var(--chat-user)] text-white"
+                      ? "ms-auto bg-[var(--chat-user)] text-white whitespace-pre-wrap text-sm leading-relaxed"
                       : "bg-white text-[var(--ink)] border border-[var(--line)]"
                   )}
                 >
-                  {m.content || (loading ? "…" : "")}
+                  {m.role === "assistant" ? (
+                    m.content ? (
+                      <ChatMarkdown content={m.content} />
+                    ) : loading ? (
+                      <span className="text-sm text-[var(--muted)]">…</span>
+                    ) : null
+                  ) : (
+                    m.content
+                  )}
                 </motion.div>
               );
             })}
@@ -507,20 +547,32 @@ export function PlannerStudio({
           <TripMap
             stops={mapStops}
             focus={mapFocus}
-            visible={mobileTab === "map"}
+            visible
             className="absolute inset-0 h-full w-full"
           />
 
           {mapStops.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-3 mx-3 rounded-2xl border border-[var(--line)] bg-white/92 px-4 py-3 shadow-lg backdrop-blur">
-              <p className="text-sm font-medium text-[var(--ink)]">
-                {loading ? "Flying to your destination…" : "Living map"}
-              </p>
-              <p className="mt-0.5 text-xs text-[var(--muted)]">
-                {loading
-                  ? "Pins drop when the itinerary is ready."
-                  : "Experiences appear here as Voyara plans."}
-              </p>
+            <div className="pointer-events-none absolute inset-x-0 top-3 mx-3 overflow-hidden rounded-2xl border border-white/40 shadow-lg">
+              <div className="relative h-20">
+                <Image
+                  src={heroPhoto.url}
+                  alt={heroPhoto.alt}
+                  fill
+                  className="object-cover"
+                  sizes="480px"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/55 to-black/20" />
+                <div className="absolute inset-0 flex flex-col justify-center px-4 text-white">
+                  <p className="text-sm font-semibold">
+                    {loading ? "Scouting your route…" : "Living map"}
+                  </p>
+                  <p className="text-xs text-white/85">
+                    {loading
+                      ? "Pins drop when the itinerary is ready."
+                      : "Experiences appear here as Voyara plans."}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 

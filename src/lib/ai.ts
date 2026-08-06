@@ -53,7 +53,8 @@ Rules:
 5. When marketplace providers fit, recommend them by exact name and say they are on Voyara.
 6. Tone: warm, excited, expert — make the traveler feel the trip.
 7. Keep logistics realistic (drive times in Jordan, heat, rest).
-8. End with a short "why this trip works" note.`;
+8. End with a short "why this trip works" note.
+9. FORMAT with clean Markdown the UI can render: one # title, ## for each day, ### for Morning/Afternoon/Evening (or Arabic equivalents), **bold** for place names, short paragraphs (2–4 sentences), bullet lists when helpful. No raw asterisks without closing pairs. No emoji spam.`;
 }
 
 export function buildItineraryJsonPrompt(input: {
