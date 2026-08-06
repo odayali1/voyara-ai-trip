@@ -12,6 +12,7 @@ import { geocodePlace } from "@/lib/geo";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { looksLikePlanRequest, parseItineraryFromText } from "@/lib/parse-itinerary";
 import { trackEvent } from "@/lib/intent";
+import { detectReplyLanguage, planHasWrongLanguage } from "@/lib/language";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
@@ -151,12 +152,15 @@ export async function POST(req: Request) {
       .catch(() => undefined);
   }
 
+  const replyLanguage = detectReplyLanguage(lastUser?.content || "");
+
   const system = buildPlannerSystemPrompt({
     travelerType: user?.travelerProfile?.travelerType,
     budgetBand: user?.travelerProfile?.budgetBand,
     interests: user?.travelerProfile?.interests,
     constraints: user?.travelerProfile?.constraints,
     providerListings: listings,
+    replyLanguage,
   });
 
   const encoder = new TextEncoder();
@@ -237,20 +241,38 @@ export async function POST(req: Request) {
         if (shouldPlan && !abortSignal.aborted) {
           send({ type: "status", stage: "mapping" });
           try {
-            const { text: jsonText } = await generateText({
-              model: deepseek.chat(deepseekModel),
-              prompt: buildItineraryJsonPrompt({
-                userRequest: lastUser?.content || "",
-                assistantReply: fullText.slice(0, 6000),
-                travelerType: user?.travelerProfile?.travelerType,
-                budgetBand: user?.travelerProfile?.budgetBand,
-                interests: user?.travelerProfile?.interests,
-                listingsLine: listings.map((l) => `${l.title} in ${l.city}`).join("; "),
-              }),
-              abortSignal,
-            });
+            const listingsLine = listings
+              .map((l) => `${l.title} in ${l.city}`)
+              .join("; ");
 
-            const object = parseItineraryFromText(jsonText);
+            async function generatePlanJson(forceEnglish = false) {
+              const { text: jsonText } = await generateText({
+                model: deepseek.chat(deepseekModel),
+                prompt: buildItineraryJsonPrompt({
+                  userRequest: lastUser?.content || "",
+                  assistantReply: fullText.slice(0, 6000),
+                  travelerType: user?.travelerProfile?.travelerType,
+                  budgetBand: user?.travelerProfile?.budgetBand,
+                  interests: user?.travelerProfile?.interests,
+                  listingsLine,
+                  replyLanguage,
+                  forceEnglish,
+                }),
+                abortSignal,
+              });
+              return parseItineraryFromText(jsonText);
+            }
+
+            let object = await generatePlanJson(false);
+            // DeepSeek sometimes leaks Chinese into structured JSON — reject & regenerate
+            if (planHasWrongLanguage(object, replyLanguage)) {
+              console.warn("itinerary CJK language leak — regenerating");
+              object = await generatePlanJson(replyLanguage !== "ar");
+              if (planHasWrongLanguage(object, replyLanguage) && replyLanguage !== "zh") {
+                object = await generatePlanJson(true);
+              }
+            }
+
             const enriched = await enrichPlan(object);
             send({ type: "plan", plan: enriched });
 

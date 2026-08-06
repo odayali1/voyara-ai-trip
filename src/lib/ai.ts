@@ -1,4 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
+import { detectReplyLanguage, languageLabel, type ReplyLanguage } from "@/lib/language";
 
 export const deepseek = createOpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -21,6 +22,7 @@ export function buildPlannerSystemPrompt(input: {
     description: string;
     priceFrom?: number | null;
   }>;
+  replyLanguage?: ReplyLanguage;
 }) {
   const listings =
     input.providerListings && input.providerListings.length > 0
@@ -34,6 +36,8 @@ export function buildPlannerSystemPrompt(input: {
           .join("\n")
       : "None available yet.";
 
+  const lang = languageLabel(input.replyLanguage || "en");
+
   return `You are Voyara, a world-class AI travel fixer. You create vivid, bookable-feeling day-by-day journeys.
 
 Traveler profile:
@@ -46,7 +50,10 @@ Voyara marketplace providers (MUST prefer & name these when destination matches)
 ${listings}
 
 Rules:
-1. LANGUAGE: Reply in the SAME language as the user. Arabic in → full Arabic out. Never mix English templates into Arabic.
+1. LANGUAGE (CRITICAL): Write the ENTIRE reply in ${lang} only.
+   - English user → English only. Arabic user → Arabic only.
+   - NEVER use Chinese, Japanese, or Korean unless the user wrote in that language.
+   - Place names may stay in local Latin spelling (Petra, Amman) inside ${lang} sentences.
 2. If destination is clear, plan immediately — do not stall with empty questions.
 3. Every day must include: morning place, food stop, signature experience, evening moment. Name real neighborhoods / landmarks.
 4. Always include local experiences (tours, nature, culture, food) — not only hotels.
@@ -70,8 +77,14 @@ export function buildItineraryJsonPrompt(input: {
   budgetBand?: string | null;
   interests?: string[];
   listingsLine: string;
+  replyLanguage?: ReplyLanguage;
+  forceEnglish?: boolean;
 }) {
-  const arabic = /[\u0600-\u06FF]/.test(input.userRequest);
+  const lang = input.forceEnglish
+    ? "en"
+    : input.replyLanguage || detectReplyLanguage(input.userRequest);
+  const langName = languageLabel(lang);
+
   return `Convert this travel conversation into ONE JSON object for a map itinerary packed with real places & experiences.
 
 User request:
@@ -112,8 +125,13 @@ Return ONLY valid JSON (no markdown) with this shape:
   ]
 }
 
-Language for title/summary/day/stop/tips text: ${arabic ? "Arabic" : "same as user"}.
-destination MUST be English/Latin.
+LANGUAGE (CRITICAL — zero exceptions):
+- title, summary, day.title, day.notes, stop.title, stop.tips, stop.address MUST be written in ${langName}.
+- destination MUST stay English/Latin (Jordan, Amman, Petra…).
+- FORBIDDEN unless user language is Chinese: any Chinese/Japanese/Korean characters (汉字/仮名/한글).
+- Do not translate an English trip into Chinese. Match the user language exactly.
+- Example English titles: "Amman — First Taste", "Petra Canyon Day".
+
 Every day needs 4-6 stops mixing landmarks, food, and experiences.
 Use accurate lat/lng for Jordan/Amman/Petra/Wadi Rum/Dead Sea when relevant.`;
 }
