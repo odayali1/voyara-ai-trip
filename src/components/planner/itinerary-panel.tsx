@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
+import { textDirection } from "@/lib/has-arabic";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 
 export function ItineraryPanel({
@@ -15,32 +16,37 @@ export function ItineraryPanel({
   onStopClick?: (stopId: string, title: string) => void;
 }) {
   if (!plan) {
+    if (loading) {
+      return (
+        <div className="space-y-3 p-1">
+          <p className="text-sm font-medium text-[var(--ink)]">Building itinerary…</p>
+          <p className="text-xs text-[var(--muted)]">Stops will fill in when the plan is ready.</p>
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="planning-pulse h-12 rounded-xl bg-[rgba(15,156,140,0.08)]"
+              style={{ animationDelay: `${i * 0.12}s` }}
+            />
+          ))}
+        </div>
+      );
+    }
     return (
-      <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-        <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-          {loading ? "Assembling your days…" : "Your itinerary unfolds here"}
+      <div className="flex h-full min-h-[160px] flex-col justify-center px-2">
+        <p className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
+          Day-by-day plan
         </p>
-        <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-          {loading
-            ? "Landmarks, food stops, and experiences are being pinned."
-            : "Chat with Voyara — days, stops, and map pins appear together."}
+        <p className="mt-1 text-sm text-[var(--muted)]">
+          Appears here after you chat with Voyara.
         </p>
-        {loading && (
-          <div className="mt-5 w-full space-y-2">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="planning-pulse h-14 rounded-xl bg-[rgba(15,156,140,0.08)]"
-              />
-            ))}
-          </div>
-        )}
       </div>
     );
   }
 
+  const dir = textDirection(`${plan.title} ${plan.summary}`);
+
   return (
-    <div className="space-y-4 p-1" dir="auto">
+    <div className="space-y-4 p-1" dir={dir}>
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
           {plan.title}
@@ -65,12 +71,14 @@ export function ItineraryPanel({
           <ol className="space-y-3">
             {day.stops.map((stop, stopIndex) => {
               const stopId = `${day.dayNumber}-${stopIndex}`;
+              const stopDir = textDirection(stop.title);
               return (
                 <li key={stopId}>
                   <button
                     type="button"
+                    dir={stopDir}
                     onClick={() => onStopClick?.(stopId, stop.title)}
-                    className="w-full rounded-xl border border-transparent px-2 py-2 text-left transition hover:border-[var(--line)] hover:bg-[rgba(15,156,140,0.06)]"
+                    className="w-full rounded-xl border border-transparent px-2 py-2 text-start transition hover:border-[var(--line)] hover:bg-[rgba(15,156,140,0.06)]"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -91,7 +99,7 @@ export function ItineraryPanel({
                         )}
                       </div>
                       {stop.estimatedCost != null && (
-                        <span className="text-xs font-semibold text-[var(--accent-2)]">
+                        <span className="shrink-0 text-xs font-semibold text-[var(--accent-2)]">
                           {formatCurrency(stop.estimatedCost, stop.currency || "USD")}
                         </span>
                       )}

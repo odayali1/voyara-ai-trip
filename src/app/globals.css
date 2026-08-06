@@ -117,11 +117,6 @@ body {
   color: var(--accent);
 }
 
-.stage-pill[data-active="true"] {
-  background: linear-gradient(90deg, rgba(255, 138, 76, 0.2), rgba(15, 156, 140, 0.18));
-  color: var(--ink);
-}
-
 @keyframes pulse-soft {
   0%,
   100% {

@@ -16,14 +16,18 @@ export function TripMap({
   stops,
   className,
   visible = true,
+  focus,
 }: {
   stops: MapStop[];
   className?: string;
   visible?: boolean;
+  /** Fly here while waiting for stops (e.g. Jordan). */
+  focus?: { center: [number, number]; zoom: number } | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const focusKey = focus ? `${focus.center[0]},${focus.center[1]},${focus.zoom}` : "";
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -46,16 +50,14 @@ export function TripMap({
         },
         layers: [{ id: "carto", type: "raster", source: "carto" }],
       },
-      center: [55.2708, 25.2048],
-      zoom: 2,
+      center: focus?.center || [36.2, 31.0],
+      zoom: focus?.zoom || 2.4,
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
-    const onLoad = () => {
-      map.resize();
-    };
+    const onLoad = () => map.resize();
     map.on("load", onLoad);
 
     return () => {
@@ -65,17 +67,21 @@ export function TripMap({
       map.remove();
       mapRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!visible) return;
     const map = mapRef.current;
     if (!map) return;
-    // MapLibre needs resize after display:none → visible
-    requestAnimationFrame(() => {
-      map.resize();
-    });
+    requestAnimationFrame(() => map.resize());
   }, [visible]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus || stops.length > 0) return;
+    map.flyTo({ center: focus.center, zoom: focus.zoom, essential: true, duration: 1400 });
+  }, [focusKey, focus, stops.length]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -131,7 +137,7 @@ export function TripMap({
             type: "line",
             source: "route",
             paint: {
-              "line-color": "#d4a574",
+              "line-color": "#0f9c8c",
               "line-width": 3,
               "line-opacity": 0.85,
             },
