@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  TRAVELER
+  PROVIDER
+  ADMIN
+}
+
+enum TravelerType {
+  SOLO
+  COUPLE
+  FAMILY
+  FRIENDS
+}
+
+enum BudgetBand {
+  BUDGET
+  MID
+  LUXURY
+}
+
+enum ProviderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingCategory {
+  HOTEL
+  RESTAURANT
+  TOUR
+  ACTIVITY
+  TRANSPORT
+  EXPERIENCE
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum TripStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          Role      @default(TRAVELER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions         Session[]
+  accounts         Account[]
+  travelerProfile  TravelerProfile?
+  providerProfile  ProviderProfile?
+  trips            Trip[]
+  behaviorEvents   BehaviorEvent[]
+  intentSnapshot   IntentSnapshot?
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model TravelerProfile {
+  id           String        @id @default(cuid())
+  userId       String        @unique
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  travelerType TravelerType?
+  budgetBand   BudgetBand?
+  interests    String[]      @default([])
+  homeCity     String?
+  constraints  String?
+  onboarded    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model ProviderProfile {
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName String
+  categories   ListingCategory[]
+  description  String?
+  website      String?
+  phone        String?
+  city         String?
+  country      String?
+  status       ProviderStatus   @default(PENDING)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  listings     ProviderListing[]
+}
+
+model ProviderListing {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  category    ListingCategory
+  title       String
+  description String
+  city        String
+  country     String
+  lat         Float?
+  lng         Float?
+  priceFrom   Float?
+  currency    String          @default("USD")
+  images      String[]        @default([])
+  tags        String[]        @default([])
+  amenities   String[]        @default([])
+  status      ListingStatus   @default(DRAFT)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  stops       ItineraryStop[]
+
+  @@index([city, category, status])
+  @@index([providerId])
+}
+
+model Trip {
+  id           String        @id @default(cuid())
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  title        String
+  destination  String
+  startDate    DateTime?
+  endDate      DateTime?
+  budget       BudgetBand?
+  travelerType TravelerType?
+  status       TripStatus    @default(DRAFT)
+  shareId      String        @unique @default(cuid())
+  summary      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  days         ItineraryDay[]
+  messages     ChatMessage[]
+
+  @@index([ownerId])
+  @@index([shareId])
+}
+
+model ItineraryDay {
+  id        String          @id @default(cuid())
+  tripId    String
+  trip      Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayNumber Int
+  title     String?
+  date      DateTime?
+  notes     String?
+  stops     ItineraryStop[]
+
+  @@unique([tripId, dayNumber])
+  @@index([tripId])
+}
+
+model ItineraryStop {
+  id              String           @id @default(cuid())
+  dayId           String
+  day             ItineraryDay     @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  order           Int
+  title           String
+  time            String?
+  category        String?
+  address         String?
+  lat             Float?
+  lng             Float?
+  tips            String?
+  estimatedCost   Float?
+  currency        String           @default("USD")
+  linkedListingId String?
+  linkedListing   ProviderListing? @relation(fields: [linkedListingId], references: [id], onDelete: SetNull)
+
+  @@index([dayId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([tripId])
+}
+
+model BehaviorEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventType String
+  payload   Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([userId])
+}
+
+model IntentSnapshot {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isFamily             Boolean  @default(false)
+  isCouple             Boolean  @default(false)
+  isSolo               Boolean  @default(false)
+  isFriends            Boolean  @default(false)
+  isFoodie             Boolean  @default(false)
+  isLuxury             Boolean  @default(false)
+  isAdventure          Boolean  @default(false)
+  isCulture            Boolean  @default(false)
+  destinationAffinities Json    @default("{}")
+  interestScores       Json     @default("{}")
+  updatedAt            DateTime @updatedAt
+}
