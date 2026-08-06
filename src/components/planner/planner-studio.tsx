@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Send, Save, Share2, CloudSun } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Send, Save, Share2, CloudSun, Sparkles, MapPinned, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +12,17 @@ import { PricePanel } from "@/components/planner/price-panel";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import type { PriceOffer } from "@/lib/mock-prices";
 import type { WeatherDay } from "@/lib/geo";
+import { buildPromptFromHint } from "@/lib/prompt-hint";
 import { toast } from "sonner";
 
 type ChatMsg = { id: string; role: "user" | "assistant"; content: string };
+type Stage = "idle" | "chatting" | "mapping" | "ready";
 
 const QUICK_PROMPTS = [
-  "Tokyo · 5 days · food + culture",
+  "Jordan · nature · 5 days",
+  "بدي اروح الأردن أشوف الطبيعة",
+  "Tokyo · food + culture",
   "Lisbon · couples weekend",
-  "Bali · mid budget · beach + wellness",
-  "Paris · family · 4 days",
 ];
 
 export function PlannerStudio({
@@ -28,28 +30,30 @@ export function PlannerStudio({
   initialMessages = [],
   initialPlan = null,
   destinationHint,
+  autoStart = false,
   isAuthenticated = false,
 }: {
   tripId?: string;
   initialMessages?: ChatMsg[];
   initialPlan?: ItineraryPlan | null;
   destinationHint?: string;
+  autoStart?: boolean;
   isAuthenticated?: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialMessages);
-  const [input, setInput] = useState(
-    destinationHint
-      ? `Plan a 5-day trip to ${destinationHint} focused on food and culture.`
-      : ""
+  const [input, setInput] = useState(() =>
+    destinationHint ? buildPromptFromHint(destinationHint) : ""
   );
   const [plan, setPlan] = useState<ItineraryPlan | null>(initialPlan);
   const [activeTripId, setActiveTripId] = useState<string | undefined>(tripId);
   const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<Stage>(initialPlan ? "ready" : "idle");
   const [flights, setFlights] = useState<PriceOffer[]>([]);
   const [hotels, setHotels] = useState<PriceOffer[]>([]);
   const [weather, setWeather] = useState<WeatherDay[]>([]);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<"chat" | "map" | "plan">("chat");
+  const autoStarted = useRef(false);
 
   const mapStops: MapStop[] = useMemo(() => {
     if (!plan) return [];
@@ -77,6 +81,7 @@ export function PlannerStudio({
       const pendingMessages = sessionStorage.getItem("voyara_pending_messages");
       if (pendingPlan) {
         setPlan(JSON.parse(pendingPlan) as ItineraryPlan);
+        setStage("ready");
         sessionStorage.removeItem("voyara_pending_plan");
       }
       if (pendingMessages) {
@@ -87,6 +92,14 @@ export function PlannerStudio({
       /* ignore */
     }
   }, [initialPlan, initialMessages.length]);
+
+  useEffect(() => {
+    if (!autoStart || autoStarted.current || !destinationHint) return;
+    autoStarted.current = true;
+    const prompt = buildPromptFromHint(destinationHint);
+    if (prompt) void sendMessage(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, destinationHint]);
 
   useEffect(() => {
     if (!plan?.destination) return;
@@ -153,6 +166,7 @@ export function PlannerStudio({
     if (!content || loading) return;
 
     setLoading(true);
+    setStage("chatting");
     setInput("");
     const userMsg: ChatMsg = {
       id: crypto.randomUUID(),
@@ -161,12 +175,12 @@ export function PlannerStudio({
     };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Guests can chat + plan without a DB trip; logged-in users persist.
     let trip: string | undefined = activeTripId;
     if (isAuthenticated) {
       trip = (await ensureTrip()) || undefined;
       if (!trip) {
         setLoading(false);
+        setStage("idle");
         return;
       }
     }
@@ -190,14 +204,13 @@ export function PlannerStudio({
         }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error("Chat failed");
-      }
+      if (!res.ok || !res.body) throw new Error("Chat failed");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       let assistantText = "";
+      let gotPlan = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -207,8 +220,7 @@ export function PlannerStudio({
         buffer = parts.pop() || "";
 
         for (const part of parts) {
-          const lines = part.split("\n");
-          for (const line of lines) {
+          for (const line of part.split("\n")) {
             if (!line.startsWith("data: ")) continue;
             const payload = line.slice(6);
             if (payload === "[DONE]") continue;
@@ -219,6 +231,7 @@ export function PlannerStudio({
                 plan?: ItineraryPlan;
               };
               if (event.type === "text" && event.text) {
+                if (assistantText.length > 180 && !gotPlan) setStage("mapping");
                 assistantText += event.text;
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -227,24 +240,28 @@ export function PlannerStudio({
                 );
               }
               if (event.type === "plan" && event.plan) {
+                gotPlan = true;
                 setPlan(event.plan);
+                setStage("ready");
                 setMobileTab("map");
               }
             } catch {
-              // ignore malformed chunks
+              /* ignore */
             }
           }
         }
       }
+      if (!gotPlan) setStage(assistantText ? "chatting" : "idle");
     } catch {
-      toast.error("Planning failed. Check DeepSeek API key or try again.");
+      toast.error("Planning failed. Try again in a moment.");
+      setStage("idle");
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
             ? {
                 ...m,
                 content:
-                  "I hit a snag generating that plan. Please verify the API key and try again.",
+                  "تعذر إنشاء الخطة الآن — حاول مرة أخرى. / Could not finish that plan, please retry.",
               }
             : m
         )
@@ -260,7 +277,6 @@ export function PlannerStudio({
       return;
     }
     if (!isAuthenticated) {
-      // Stash plan so after login they can continue
       try {
         sessionStorage.setItem("voyara_pending_plan", JSON.stringify(plan));
         sessionStorage.setItem("voyara_pending_messages", JSON.stringify(messages));
@@ -289,9 +305,7 @@ export function PlannerStudio({
 
   function copyShare() {
     if (!shareUrl) {
-      void saveTrip().then(() => {
-        /* share set after save */
-      });
+      void saveTrip();
       toast.message("Save the trip to get a share link");
       return;
     }
@@ -301,31 +315,42 @@ export function PlannerStudio({
 
   return (
     <div className="flex h-[calc(100vh-5rem)] flex-col gap-3 md:grid md:grid-cols-12 md:gap-4">
-      <div className="flex gap-2 md:hidden">
-        {(["chat", "map", "plan"] as const).map((tab) => (
-          <Button
-            key={tab}
-            size="sm"
-            variant={mobileTab === tab ? "default" : "secondary"}
-            onClick={() => setMobileTab(tab)}
-          >
-            {tab === "chat" ? "Chat" : tab === "map" ? "Map" : "Plan"}
-          </Button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="stage-pill" data-active={stage === "chatting"}>
+          <Sparkles className="h-3.5 w-3.5" /> Crafting story
+        </span>
+        <span className="stage-pill" data-active={stage === "mapping" || stage === "ready"}>
+          <MapPinned className="h-3.5 w-3.5" /> Pinning places
+        </span>
+        <span className="stage-pill" data-active={stage === "ready"}>
+          <Route className="h-3.5 w-3.5" /> Trip ready
+        </span>
+        <div className="ml-auto flex gap-2 md:hidden">
+          {(["chat", "map", "plan"] as const).map((tab) => (
+            <Button
+              key={tab}
+              size="sm"
+              variant={mobileTab === tab ? "default" : "secondary"}
+              onClick={() => setMobileTab(tab)}
+            >
+              {tab === "chat" ? "Chat" : tab === "map" ? "Map" : "Plan"}
+            </Button>
+          ))}
+        </div>
       </div>
 
       <section
-        className={`flex min-h-0 flex-col rounded-2xl border border-[var(--line)] bg-[var(--panel)] md:col-span-4 ${
+        className={`glass-panel flex min-h-0 flex-col rounded-3xl md:col-span-4 ${
           mobileTab !== "chat" ? "hidden md:flex" : "flex"
         }`}
       >
         <div className="flex items-center justify-between border-b border-[var(--line)] px-4 py-3">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--sand)]">
+            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
               Voyara
             </h2>
             <p className="text-xs text-[var(--muted)]">
-              {isAuthenticated ? "Your AI travel fixer" : "Try free — no login needed"}
+              {isAuthenticated ? "Your AI travel fixer" : "Guest mode · free to explore"}
             </p>
           </div>
           <div className="flex gap-2">
@@ -342,20 +367,21 @@ export function PlannerStudio({
         <div className="flex-1 space-y-3 overflow-y-auto p-4">
           {messages.length === 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-3 rounded-xl border border-[var(--line)] bg-black/20 p-4"
+              className="space-y-3 rounded-2xl border border-[var(--line)] bg-white/70 p-4"
             >
-              <p className="text-sm text-[var(--sand)]">
-                Ask anything — destinations, day-by-day plans, vibes, budget.
+              <p className="text-sm text-[var(--ink)]">
+                Tell Voyara the vibe — nature in Jordan, food in Tokyo, a couples weekend…
               </p>
               <div className="flex flex-wrap gap-2">
                 {QUICK_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
-                    onClick={() => void sendMessage(`Plan a trip: ${prompt}`)}
-                    className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--sand)]"
+                    dir="auto"
+                    onClick={() => void sendMessage(prompt)}
+                    className="rounded-full border border-[var(--line)] bg-white px-3 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--ink)]"
                   >
                     {prompt}
                   </button>
@@ -364,23 +390,34 @@ export function PlannerStudio({
             </motion.div>
           )}
           {messages.map((m) => (
-            <div
+            <motion.div
               key={m.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
               dir="auto"
-              className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+              className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm ${
                 m.role === "user"
-                  ? "ml-auto bg-[var(--accent)] text-[var(--ink)]"
-                  : "bg-white/5 text-[var(--sand)]"
+                  ? "ml-auto bg-[var(--chat-user)] text-white"
+                  : "bg-white text-[var(--ink)] border border-[var(--line)]"
               }`}
             >
               {m.content || (loading ? "…" : "")}
-            </div>
+            </motion.div>
           ))}
-          {loading && (
-            <p className="text-xs text-[var(--muted)]">
-              Planning… building map pins after the reply.
-            </p>
-          )}
+          <AnimatePresence>
+            {loading && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="planning-pulse text-xs text-[var(--muted)]"
+              >
+                {stage === "mapping"
+                  ? "Pinning experiences on the map…"
+                  : "Designing your days… map pins arrive next."}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="border-t border-[var(--line)] p-3">
@@ -388,7 +425,7 @@ export function PlannerStudio({
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Where should we go? / وين حاب تسافر؟"
+              placeholder="وين حاب تسافر؟ / Where should we go?"
               className="min-h-[72px] resize-none"
               dir="auto"
               onKeyDown={(e) => {
@@ -398,11 +435,7 @@ export function PlannerStudio({
                 }
               }}
             />
-            <Button
-              className="self-end"
-              onClick={() => void sendMessage()}
-              disabled={loading}
-            >
+            <Button className="self-end" onClick={() => void sendMessage()} disabled={loading}>
               <Send className="h-4 w-4" />
             </Button>
           </div>
@@ -410,25 +443,27 @@ export function PlannerStudio({
       </section>
 
       <section
-        className={`relative h-[55vh] min-h-[360px] overflow-hidden rounded-2xl border border-[var(--line)] md:col-span-5 md:h-full ${
+        className={`glass-panel relative h-[55vh] min-h-[360px] overflow-hidden rounded-3xl md:col-span-5 md:h-full ${
           mobileTab !== "map" ? "hidden md:block" : "block"
         }`}
       >
         <TripMap
           stops={mapStops}
-          visible={mobileTab === "map" || true}
+          visible
           className="absolute inset-0 h-full w-full"
         />
         {mapStops.length === 0 && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 mx-3 rounded-xl border border-[var(--line)] bg-[var(--ink)]/75 px-3 py-2 text-xs text-[var(--muted)] backdrop-blur">
-            Map ready — pins appear after the AI builds your plan.
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 mx-3 rounded-2xl border border-[var(--line)] bg-white/85 px-3 py-3 text-xs text-[var(--muted)] backdrop-blur">
+            {loading
+              ? "Scouting places… pins will cascade onto the map in a moment."
+              : "Your living map — experiences appear here as Voyara plans."}
           </div>
         )}
         {weather.length > 0 && (
-          <div className="absolute bottom-3 left-3 right-3 flex gap-2 overflow-x-auto rounded-xl border border-[var(--line)] bg-[var(--ink)]/80 p-2 backdrop-blur">
-            <CloudSun className="mt-1 h-4 w-4 shrink-0 text-[var(--accent)]" />
+          <div className="absolute bottom-3 left-3 right-3 flex gap-2 overflow-x-auto rounded-2xl border border-[var(--line)] bg-white/90 p-2 backdrop-blur">
+            <CloudSun className="mt-1 h-4 w-4 shrink-0 text-[var(--accent-2)]" />
             {weather.map((w) => (
-              <div key={w.date} className="min-w-[72px] text-center text-[11px] text-[var(--sand)]">
+              <div key={w.date} className="min-w-[72px] text-center text-[11px] text-[var(--ink)]">
                 <div className="text-[var(--muted)]">{w.date.slice(5)}</div>
                 <div>{w.summary}</div>
                 <div>
@@ -441,12 +476,13 @@ export function PlannerStudio({
       </section>
 
       <section
-        className={`min-h-0 space-y-4 overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 md:col-span-3 ${
+        className={`glass-panel min-h-0 space-y-4 overflow-y-auto rounded-3xl p-4 md:col-span-3 ${
           mobileTab !== "plan" ? "hidden md:block" : "block"
         }`}
       >
         <ItineraryPanel
           plan={plan}
+          loading={loading && !plan}
           onStopClick={async (_id, title) => {
             await fetch("/api/events", {
               method: "POST",
@@ -464,9 +500,9 @@ export function PlannerStudio({
           </div>
         )}
         {shareUrl && (
-          <div className="rounded-lg border border-[var(--line)] p-3 text-xs text-[var(--muted)]">
+          <div className="rounded-xl border border-[var(--line)] bg-white/70 p-3 text-xs text-[var(--muted)]">
             Share link ready <Badge variant="outline">public</Badge>
-            <div className="mt-1 break-all text-[var(--sand)]">{shareUrl}</div>
+            <div className="mt-1 break-all text-[var(--ink)]">{shareUrl}</div>
           </div>
         )}
       </section>

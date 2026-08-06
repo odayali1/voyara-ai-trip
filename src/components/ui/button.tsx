@@ -4,23 +4,24 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
         default:
-          "bg-[var(--accent)] text-[var(--ink)] hover:brightness-110 shadow-sm",
+          "bg-[var(--accent)] text-white hover:brightness-110 shadow-[0_10px_24px_rgba(15,156,140,0.28)]",
         secondary:
-          "bg-white/10 text-[var(--sand)] border border-white/15 hover:bg-white/15",
-        ghost: "hover:bg-white/10 text-[var(--sand)]",
+          "bg-white/70 text-[var(--ink)] border border-[var(--line)] hover:bg-white",
+        ghost: "hover:bg-black/5 text-[var(--ink)]",
         outline:
-          "border border-[var(--line)] bg-transparent hover:bg-white/5 text-[var(--sand)]",
+          "border border-[var(--line)] bg-transparent hover:bg-white/60 text-[var(--ink)]",
         destructive: "bg-red-600 text-white hover:bg-red-500",
+        hero: "bg-white text-[var(--ink-deep)] hover:bg-[var(--accent-soft)] shadow-lg",
       },
       size: {
         default: "h-10 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-md px-8 text-base",
+        sm: "h-8 rounded-full px-3 text-xs",
+        lg: "h-12 rounded-full px-8 text-base",
         icon: "h-10 w-10",
       },
     },

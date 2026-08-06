@@ -10,12 +10,13 @@ export function Badge({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase",
-        variant === "default" && "bg-white/10 text-[var(--sand)]",
-        variant === "demo" && "bg-amber-400/20 text-amber-200 border border-amber-300/30",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase",
+        variant === "default" && "bg-[rgba(15,156,140,0.12)] text-[var(--accent)]",
+        variant === "demo" &&
+          "bg-[rgba(255,138,76,0.16)] text-[#c45a1a] border border-[rgba(255,138,76,0.35)]",
         variant === "outline" && "border border-[var(--line)] text-[var(--muted)]",
-        variant === "success" && "bg-emerald-500/20 text-emerald-200",
-        variant === "warn" && "bg-orange-500/20 text-orange-200",
+        variant === "success" && "bg-emerald-100 text-emerald-800",
+        variant === "warn" && "bg-amber-100 text-amber-800",
         className
       )}
       {...props}
