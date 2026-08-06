@@ -2,7 +2,7 @@ FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Skip postinstall scripts here; prisma schema is not copied yet
+# Skip scripts: prisma schema is not present yet in this layer
 RUN npm ci --ignore-scripts
 
 FROM node:22-alpine AS builder
@@ -12,7 +12,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-# prisma generate needs a URL present; runtime Coolify DATABASE_URL overrides this
+# Only needed so prisma generate can resolve config during build
 ENV DATABASE_URL="postgresql://voyara:voyara@127.0.0.1:5432/voyara?schema=public"
 
 RUN npx prisma generate
@@ -34,12 +34,17 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+
+RUN chmod +x ./scripts/start.sh \
+  && chown -R nextjs:nodejs /app
 
 USER nextjs
 EXPOSE 3000
 
-# Apply schema on boot (safe for MVP), then start Next standalone server
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+# Auto: migrate + seed + start — no manual Coolify command needed
+CMD ["./scripts/start.sh"]
