@@ -55,7 +55,7 @@ export function SiteHeader({
             <Button asChild variant="ghost" size="sm" className={mutedHover}>
               <Link href="/login">Log in</Link>
             </Button>
-            <Button asChild size="sm" variant={light ? "hero" : "default"}>
+            <Button asChild size="sm" variant={light ? "hero" : "default"} className="hidden sm:inline-flex">
               <Link href="/signup">Get started</Link>
             </Button>
           </>

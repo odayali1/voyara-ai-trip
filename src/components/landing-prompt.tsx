@@ -4,16 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-const DESTINATIONS = [
-  "Jordan",
-  "Tokyo",
-  "Lisbon",
-  "Bali",
-  "Dubai",
-  "Paris",
-  "Rome",
-  "Amman",
-];
+const DESTINATIONS = ["Jordan", "Tokyo", "Lisbon", "Bali", "Dubai"];
 
 export function LandingPrompt() {
   const router = useRouter();

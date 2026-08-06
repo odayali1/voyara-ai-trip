@@ -19,15 +19,10 @@ export default async function PlannerPage({
     <main className="app-shell min-h-screen">
       <div className="relative px-4 pb-4 pt-20 md:px-6">
         <SiteHeader role={user?.role} />
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <p className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
-              Planner studio
-            </p>
-            <p className="text-xs text-[var(--muted)]">
-              {!session ? "Guest mode · chat in Arabic or English" : "Your saved trips sync here"}
-            </p>
-          </div>
+        <div className="mb-2 hidden items-center justify-between gap-3 md:flex">
+          <p className="text-xs text-[var(--muted)]">
+            {!session ? "Guest mode · Arabic or English" : "Your saved trips sync here"}
+          </p>
           {session ? (
             <Button asChild size="sm" variant="ghost">
               <Link href="/trips">My trips</Link>

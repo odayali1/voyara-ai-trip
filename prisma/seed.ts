@@ -239,36 +239,66 @@ async function main() {
     });
   }
 
-  await db.behaviorEvent.createMany({
-    data: [
-      { userId: traveler.id, eventType: "page_landed", payload: { page: "home" } },
-      {
-        userId: traveler.id,
-        eventType: "preference_set",
-        payload: { travelerType: "COUPLE", interests: ["food", "culture"] },
-      },
-      {
-        userId: traveler.id,
-        eventType: "destination_searched",
-        payload: { destination: "Tokyo" },
-      },
-      {
-        userId: traveler.id,
-        eventType: "chat_sent",
-        payload: { destination: "Tokyo" },
-      },
-      {
-        userId: traveler.id,
-        eventType: "trip_generated",
-        payload: { destination: "Tokyo", days: 5 },
-      },
-      {
-        userId: traveler.id,
-        eventType: "listing_viewed",
-        payload: { category: "HOTEL", city: "Tokyo" },
-      },
-    ],
-  });
+  // Fresh demo events each seed run (safe for analytics polish)
+  const demoEvents = [
+    { userId: traveler.id, eventType: "page_landed", payload: { page: "home" } },
+    {
+      userId: traveler.id,
+      eventType: "preference_set",
+      payload: { travelerType: "COUPLE", interests: ["food", "culture", "nature"] },
+    },
+    {
+      userId: traveler.id,
+      eventType: "destination_searched",
+      payload: { destination: "Jordan" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "chat_sent",
+      payload: { destination: "Jordan" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "trip_generated",
+      payload: { destination: "Jordan", days: 5 },
+    },
+    {
+      userId: traveler.id,
+      eventType: "map_poi_opened",
+      payload: { title: "Petra Canyon Day Guide", city: "Petra" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "listing_viewed",
+      payload: { category: "EXPERIENCE", city: "Wadi Rum", title: "Wadi Rum Night Under the Stars" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "listing_viewed",
+      payload: { category: "TOUR", city: "Amman", title: "Amman Citadel Sunrise Walk" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "listing_saved",
+      payload: { category: "EXPERIENCE", city: "Dead Sea" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "stop_clicked",
+      payload: { title: "Dead Sea Float & Spa Escape", destination: "Jordan" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "chat_sent",
+      payload: { destination: "Tokyo" },
+    },
+    {
+      userId: traveler.id,
+      eventType: "trip_generated",
+      payload: { destination: "Tokyo", days: 4 },
+    },
+  ];
+  await db.behaviorEvent.createMany({ data: demoEvents });
 
   console.log("Seed complete");
   console.log({ admin: admin.email, traveler: traveler.email, provider: providerUser.email });

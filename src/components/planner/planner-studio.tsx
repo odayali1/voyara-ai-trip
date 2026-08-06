@@ -315,17 +315,22 @@ export function PlannerStudio({
 
   return (
     <div className="flex h-[calc(100vh-5rem)] flex-col gap-3 md:grid md:grid-cols-12 md:gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="stage-pill" data-active={stage === "chatting"}>
-          <Sparkles className="h-3.5 w-3.5" /> Crafting story
-        </span>
-        <span className="stage-pill" data-active={stage === "mapping" || stage === "ready"}>
-          <MapPinned className="h-3.5 w-3.5" /> Pinning places
-        </span>
-        <span className="stage-pill" data-active={stage === "ready"}>
-          <Route className="h-3.5 w-3.5" /> Trip ready
-        </span>
-        <div className="ml-auto flex gap-2 md:hidden">
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto pb-0.5">
+          <span className="stage-pill shrink-0" data-active={stage === "chatting"}>
+            <Sparkles className="h-3.5 w-3.5" /> Story
+          </span>
+          <span
+            className="stage-pill shrink-0"
+            data-active={stage === "mapping" || stage === "ready"}
+          >
+            <MapPinned className="h-3.5 w-3.5" /> Map
+          </span>
+          <span className="stage-pill shrink-0" data-active={stage === "ready"}>
+            <Route className="h-3.5 w-3.5" /> Ready
+          </span>
+        </div>
+        <div className="flex shrink-0 gap-1 md:hidden">
           {(["chat", "map", "plan"] as const).map((tab) => (
             <Button
               key={tab}
