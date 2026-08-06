@@ -13,7 +13,8 @@ import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { looksLikePlanRequest, parseItineraryFromText } from "@/lib/parse-itinerary";
 import { trackEvent } from "@/lib/intent";
 
-export const maxDuration = 90;
+export const maxDuration = 120;
+export const dynamic = "force-dynamic";
 
 async function enrichPlan(plan: ItineraryPlan): Promise<ItineraryPlan> {
   const destGeo = await geocodePlace(plan.destination);
@@ -48,6 +49,26 @@ async function enrichPlan(plan: ItineraryPlan): Promise<ItineraryPlan> {
   return { ...plan, days };
 }
 
+function errorMessage(err: unknown): string {
+  if (!err || typeof err !== "object") return "AI request failed";
+  const anyErr = err as {
+    statusCode?: number;
+    message?: string;
+    data?: { error?: { message?: string } };
+  };
+  if (anyErr.statusCode === 401 || /auth/i.test(anyErr.message || "")) {
+    return "DeepSeek API key is missing or invalid on the server. Check DEEPSEEK_API_KEY in Coolify.";
+  }
+  if (anyErr.statusCode === 429) {
+    return "AI rate limit hit — wait a moment and try again.";
+  }
+  return (
+    anyErr.data?.error?.message ||
+    anyErr.message ||
+    "Something went wrong talking to the AI."
+  );
+}
+
 export async function POST(req: Request) {
   if (!process.env.DEEPSEEK_API_KEY) {
     return NextResponse.json(
@@ -70,6 +91,7 @@ export async function POST(req: Request) {
 
   const isGuest = !session;
   let tripDestination = "TBD";
+  const abortSignal = req.signal;
 
   if (!isGuest && tripId) {
     const trip = await db.trip.findFirst({
@@ -89,14 +111,24 @@ export async function POST(req: Request) {
         })
       : null;
 
+  // Keep pre-stream work light so the SSE starts quickly
   const listings = await db.providerListing.findMany({
     where: { status: "ACTIVE", provider: { status: "APPROVED" } },
     take: 12,
-    include: { provider: true },
+    select: {
+      id: true,
+      title: true,
+      category: true,
+      city: true,
+      description: true,
+      priceFrom: true,
+    },
   });
 
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  await trackEvent(
+
+  // Fire-and-forget analytics so chat TTFT stays low
+  void trackEvent(
     "chat_sent",
     {
       tripId: tripId || null,
@@ -108,13 +140,15 @@ export async function POST(req: Request) {
   );
 
   if (!isGuest && tripId && lastUser?.content) {
-    await db.chatMessage.create({
-      data: {
-        tripId,
-        role: "user",
-        content: lastUser.content,
-      },
-    });
+    void db.chatMessage
+      .create({
+        data: {
+          tripId,
+          role: "user",
+          content: lastUser.content,
+        },
+      })
+      .catch(() => undefined);
   }
 
   const system = buildPlannerSystemPrompt({
@@ -122,60 +156,98 @@ export async function POST(req: Request) {
     budgetBand: user?.travelerProfile?.budgetBand,
     interests: user?.travelerProfile?.interests,
     constraints: user?.travelerProfile?.constraints,
-    providerListings: listings.map((l) => ({
-      id: l.id,
-      title: l.title,
-      category: l.category,
-      city: l.city,
-      description: l.description,
-      priceFrom: l.priceFrom,
-    })),
+    providerListings: listings,
   });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (data: unknown) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      let closed = false;
+
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
       };
 
+      const send = (data: unknown) => {
+        if (closed || abortSignal.aborted) return false;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+          return true;
+        } catch {
+          closed = true;
+          return false;
+        }
+      };
+
+      const heartbeat = setInterval(() => {
+        if (closed || abortSignal.aborted) return;
+        try {
+          // SSE comment keeps proxies from idle-closing long DeepSeek calls
+          controller.enqueue(encoder.encode(`: ping ${Date.now()}\n\n`));
+        } catch {
+          closed = true;
+        }
+      }, 12000);
+
       try {
+        send({ type: "status", stage: "writing" });
+
         const result = streamText({
           model: deepseek.chat(deepseekModel),
           system,
           messages,
+          abortSignal,
         });
 
         let fullText = "";
         for await (const chunk of result.textStream) {
+          if (abortSignal.aborted) break;
           fullText += chunk;
-          send({ type: "text", text: chunk });
+          if (!send({ type: "text", text: chunk })) break;
+        }
+
+        if (!fullText.trim()) {
+          send({
+            type: "error",
+            message:
+              "The AI returned an empty reply. Check DEEPSEEK_API_KEY / model on the server, then retry.",
+          });
+          send({ type: "done" });
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          return;
         }
 
         if (!isGuest && tripId) {
-          await db.chatMessage.create({
-            data: { tripId, role: "assistant", content: fullText },
-          });
+          void db.chatMessage
+            .create({
+              data: { tripId, role: "assistant", content: fullText },
+            })
+            .catch(() => undefined);
         }
 
         const shouldPlan =
           looksLikePlanRequest(lastUser?.content || "") || fullText.length > 350;
 
-        if (shouldPlan) {
+        if (shouldPlan && !abortSignal.aborted) {
+          send({ type: "status", stage: "mapping" });
           try {
-            // DeepSeek currently rejects response_format/json_schema — use plain text JSON.
             const { text: jsonText } = await generateText({
               model: deepseek.chat(deepseekModel),
               prompt: buildItineraryJsonPrompt({
                 userRequest: lastUser?.content || "",
-                assistantReply: fullText,
+                assistantReply: fullText.slice(0, 6000),
                 travelerType: user?.travelerProfile?.travelerType,
                 budgetBand: user?.travelerProfile?.budgetBand,
                 interests: user?.travelerProfile?.interests,
-                listingsLine: listings
-                  .map((l) => `${l.title} in ${l.city}`)
-                  .join("; "),
+                listingsLine: listings.map((l) => `${l.title} in ${l.city}`).join("; "),
               }),
+              abortSignal,
             });
 
             const object = parseItineraryFromText(jsonText);
@@ -220,7 +292,7 @@ export async function POST(req: Request) {
               }
             }
 
-            await trackEvent(
+            void trackEvent(
               "trip_generated",
               {
                 tripId: tripId || null,
@@ -234,30 +306,41 @@ export async function POST(req: Request) {
             console.error("itinerary parse failed", err);
             send({
               type: "text",
-              text: "\n\n(تم إنشاء النص، لكن خريطة الأيام تحتاج إعادة محاولة — structured map pins need another try.)",
+              text: "\n\n(تم إنشاء النص، لكن خريطة الأيام تحتاج إعادة محاولة — map pins need another try.)",
             });
           }
         }
 
         send({ type: "done" });
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        if (!closed && !abortSignal.aborted) {
+          try {
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          } catch {
+            closed = true;
+          }
+        }
       } catch (err) {
-        console.error(err);
+        console.error("chat stream failed", err);
+        const msg = errorMessage(err);
+        send({ type: "error", message: msg });
         send({
           type: "text",
-          text: "Something went wrong talking to the AI. Please try again. / حدث خطأ، حاول مرة أخرى.",
+          text: `${msg}\n\nحدث خطأ — حاول مرة أخرى.`,
         });
+        send({ type: "done" });
       } finally {
-        controller.close();
+        clearInterval(heartbeat);
+        close();
       }
     },
   });
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }

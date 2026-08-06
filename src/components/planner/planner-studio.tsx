@@ -224,10 +224,14 @@ export function PlannerStudio({
       { id: assistantId, role: "assistant", content: "" },
     ]);
 
+    const abort = new AbortController();
+    const timeout = window.setTimeout(() => abort.abort(), 110_000);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abort.signal,
         body: JSON.stringify({
           tripId: trip || null,
           messages: [...messages, userMsg].map((m) => ({
@@ -237,13 +241,17 @@ export function PlannerStudio({
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Chat failed");
+      if (!res.ok || !res.body) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || `Chat failed (${res.status})`);
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       let assistantText = "";
       let gotPlan = false;
+      let sawError = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -262,7 +270,17 @@ export function PlannerStudio({
                 type: string;
                 text?: string;
                 plan?: ItineraryPlan;
+                stage?: string;
+                message?: string;
               };
+              if (event.type === "status") {
+                if (event.stage === "mapping") setStage("mapping");
+                else if (event.stage === "writing") setStage("chatting");
+              }
+              if (event.type === "error" && event.message) {
+                sawError = event.message;
+                toast.error(event.message);
+              }
               if (event.type === "text" && event.text) {
                 if (assistantText.length > 120 && !gotPlan) setStage("mapping");
                 assistantText += event.text;
@@ -279,27 +297,44 @@ export function PlannerStudio({
                 setMobileTab("map");
               }
             } catch {
-              /* ignore */
+              /* ignore keep-alives / partial JSON */
             }
           }
         }
       }
-      if (!gotPlan) setStage(assistantText ? "chatting" : "idle");
-    } catch {
-      toast.error("Planning failed. Try again in a moment.");
+
+      if (!assistantText.trim()) {
+        const fallback =
+          sawError ||
+          "No reply from Voyara — the AI stream ended empty. Retry in a moment.";
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: fallback } : m))
+        );
+        setStage("idle");
+      } else if (!gotPlan) {
+        setStage("chatting");
+      }
+    } catch (err) {
+      const aborted = err instanceof DOMException && err.name === "AbortError";
+      const message = aborted
+        ? "Took too long — proxy/AI timed out. Try a shorter ask, or retry."
+        : err instanceof Error
+          ? err.message
+          : "Planning failed. Try again.";
+      toast.error(message);
       setStage("idle");
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
             ? {
                 ...m,
-                content:
-                  "تعذر إنشاء الخطة الآن — حاول مرة أخرى. / Could not finish that plan, please retry.",
+                content: `تعذر إنشاء الخطة الآن — حاول مرة أخرى.\n\n${message}`,
               }
             : m
         )
       );
     } finally {
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   }
