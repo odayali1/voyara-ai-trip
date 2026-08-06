@@ -54,7 +54,13 @@ Rules:
 6. Tone: warm, excited, expert — make the traveler feel the trip.
 7. Keep logistics realistic (drive times in Jordan, heat, rest).
 8. End with a short "why this trip works" note.
-9. FORMAT with clean Markdown the UI can render: one # title, ## for each day, ### for Morning/Afternoon/Evening (or Arabic equivalents), **bold** for place names, short paragraphs (2–4 sentences), bullet lists when helpful. No raw asterisks without closing pairs. No emoji spam.`;
+9. FORMAT with clean Markdown the UI can render:
+   - One H1 title, then each day as ## Day N: Title
+   - Use **bold** for place names (real Markdown bold, not bare asterisks)
+   - Use short bullet lists for morning / midday / evening when helpful
+   - Separate days with a horizontal rule ---
+   - Keep paragraphs short (2–4 lines). No giant walls of text.
+   - Do NOT wrap the whole reply in a code fence.`;
 }
 
 export function buildItineraryJsonPrompt(input: {

@@ -6,7 +6,6 @@ import { Send, Save, Share2, CloudSun, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
 import { TripMap, type MapStop } from "@/components/map/trip-map";
 import { ItineraryPanel } from "@/components/planner/itinerary-panel";
 import { PricePanel } from "@/components/planner/price-panel";
@@ -16,7 +15,6 @@ import type { PriceOffer } from "@/lib/mock-prices";
 import type { WeatherDay } from "@/lib/geo";
 import { buildPromptFromHint } from "@/lib/prompt-hint";
 import { destinationFocus } from "@/lib/destination-focus";
-import { destinationHeroImage } from "@/lib/place-images";
 import { textDirection } from "@/lib/has-arabic";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -69,7 +67,7 @@ export function PlannerStudio({
   const autoStarted = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
-  const stickToBottom = useRef(true);
+  const stickToBottomRef = useRef(true);
 
   const mapStops: MapStop[] = useMemo(() => {
     if (!plan) return [];
@@ -96,7 +94,7 @@ export function PlannerStudio({
   }, [plan?.destination, destinationHint, input, messages]);
 
   useEffect(() => {
-    if (!stickToBottom.current) return;
+    if (!stickToBottomRef.current) return;
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
 
@@ -104,7 +102,7 @@ export function PlannerStudio({
     const el = chatScrollRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    stickToBottom.current = distanceFromBottom < 80;
+    stickToBottomRef.current = distanceFromBottom < 80;
   }
 
   useEffect(() => {
@@ -202,7 +200,7 @@ export function PlannerStudio({
     setStage("chatting");
     setMobileTab("chat");
     setInput("");
-    stickToBottom.current = true;
+    stickToBottomRef.current = true;
     const userMsg: ChatMsg = {
       id: crypto.randomUUID(),
       role: "user",
@@ -348,10 +346,6 @@ export function PlannerStudio({
     toast.success("Share link copied");
   }
 
-  const heroPhoto = destinationHeroImage(
-    plan?.destination || destinationHint || "travel"
-  );
-
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
       {/* Full-width toolbar — NOT inside the 12-col grid */}
@@ -436,19 +430,9 @@ export function PlannerStudio({
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-3"
               >
-                <div className="relative h-28 overflow-hidden rounded-2xl">
-                  <Image
-                    src={heroPhoto.url}
-                    alt={heroPhoto.alt}
-                    fill
-                    className="object-cover"
-                    sizes="400px"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-                  <p className="absolute bottom-3 start-3 end-3 text-sm text-white">
-                    Tell Voyara the vibe — nature in Jordan, food in Tokyo…
-                  </p>
-                </div>
+                <p className="text-sm text-[var(--ink)]">
+                  Tell Voyara the vibe — nature in Jordan, food in Tokyo…
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_PROMPTS.map((prompt) => (
                     <button
@@ -476,19 +460,18 @@ export function PlannerStudio({
                   className={cn(
                     "max-w-[94%] rounded-2xl px-3.5 py-2.5 shadow-sm",
                     m.role === "user"
-                      ? "ms-auto bg-[var(--chat-user)] text-white whitespace-pre-wrap text-sm leading-relaxed"
+                      ? "ms-auto bg-[var(--chat-user)] text-white"
                       : "bg-white text-[var(--ink)] border border-[var(--line)]"
                   )}
                 >
-                  {m.role === "assistant" ? (
-                    m.content ? (
-                      <ChatMarkdown content={m.content} />
-                    ) : loading ? (
-                      <span className="text-sm text-[var(--muted)]">…</span>
-                    ) : null
-                  ) : (
-                    m.content
-                  )}
+                  {m.content ? (
+                    <ChatMarkdown
+                      content={m.content}
+                      tone={m.role === "user" ? "user" : "assistant"}
+                    />
+                  ) : loading ? (
+                    "…"
+                  ) : null}
                 </motion.div>
               );
             })}
@@ -547,32 +530,20 @@ export function PlannerStudio({
           <TripMap
             stops={mapStops}
             focus={mapFocus}
-            visible
+            visible={mobileTab === "map"}
             className="absolute inset-0 h-full w-full"
           />
 
           {mapStops.length === 0 && (
-            <div className="pointer-events-none absolute inset-x-0 top-3 mx-3 overflow-hidden rounded-2xl border border-white/40 shadow-lg">
-              <div className="relative h-20">
-                <Image
-                  src={heroPhoto.url}
-                  alt={heroPhoto.alt}
-                  fill
-                  className="object-cover"
-                  sizes="480px"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-black/55 to-black/20" />
-                <div className="absolute inset-0 flex flex-col justify-center px-4 text-white">
-                  <p className="text-sm font-semibold">
-                    {loading ? "Scouting your route…" : "Living map"}
-                  </p>
-                  <p className="text-xs text-white/85">
-                    {loading
-                      ? "Pins drop when the itinerary is ready."
-                      : "Experiences appear here as Voyara plans."}
-                  </p>
-                </div>
-              </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-3 mx-3 rounded-2xl border border-[var(--line)] bg-white/92 px-4 py-3 shadow-lg backdrop-blur">
+              <p className="text-sm font-medium text-[var(--ink)]">
+                {loading ? "Flying to your destination…" : "Living map"}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--muted)]">
+                {loading
+                  ? "Pins drop when the itinerary is ready."
+                  : "Experiences appear here as Voyara plans."}
+              </p>
             </div>
           )}
 

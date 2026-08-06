@@ -3,67 +3,92 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
-import { textDirection } from "@/lib/has-arabic";
 
 export function ChatMarkdown({
   content,
   className,
+  tone = "assistant",
 }: {
   content: string;
   className?: string;
+  tone?: "assistant" | "user";
 }) {
-  const dir = textDirection(content);
+  const user = tone === "user";
 
   return (
-    <div dir={dir} className={cn("voyara-md text-sm leading-relaxed", className)}>
+    <div
+      className={cn(
+        "chat-md text-sm leading-relaxed",
+        user ? "text-white" : "text-[var(--ink)]",
+        className
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mb-3 font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--ink)] first:mt-0">
+            <h1 className="mb-2 mt-1 font-[family-name:var(--font-display)] text-xl font-semibold first:mt-0">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mb-2 mt-5 border-t border-[var(--line)] pt-4 font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--ink)] first:mt-0 first:border-0 first:pt-0">
+            <h2 className="mb-2 mt-4 font-[family-name:var(--font-display)] text-lg font-semibold first:mt-0">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mb-1.5 mt-3 text-[15px] font-semibold text-[var(--ink)]">
-              {children}
-            </h3>
+            <h3 className="mb-1.5 mt-3 text-sm font-semibold first:mt-0">{children}</h3>
           ),
-          p: ({ children }) => <p className="mb-2.5 last:mb-0">{children}</p>,
+          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
           strong: ({ children }) => (
-            <strong className="font-semibold text-[var(--ink)]">{children}</strong>
+            <strong className={cn("font-semibold", user ? "text-white" : "text-[var(--ink-deep)]")}>
+              {children}
+            </strong>
           ),
-          em: ({ children }) => <em className="italic text-[var(--ink)]/90">{children}</em>,
-          ul: ({ children }) => (
-            <ul className="mb-3 list-disc space-y-1 ps-5">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="mb-3 list-decimal space-y-1 ps-5">{children}</ol>
-          ),
+          em: ({ children }) => <em className="italic opacity-95">{children}</em>,
+          ul: ({ children }) => <ul className="mb-2 list-disc space-y-1 ps-5">{children}</ul>,
+          ol: ({ children }) => <ol className="mb-2 list-decimal space-y-1 ps-5">{children}</ol>,
           li: ({ children }) => <li className="leading-relaxed">{children}</li>,
-          hr: () => <hr className="my-4 border-[var(--line)]" />,
+          hr: () => (
+            <hr
+              className={cn(
+                "my-3 border-0 border-t",
+                user ? "border-white/25" : "border-[var(--line)]"
+              )}
+            />
+          ),
           a: ({ href, children }) => (
             <a
               href={href}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-[var(--accent)] underline underline-offset-2"
+              className={cn(
+                "underline underline-offset-2",
+                user ? "text-white" : "text-[var(--accent)]"
+              )}
             >
               {children}
             </a>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-3 border-s-4 border-[var(--accent)] bg-[rgba(15,156,140,0.06)] px-3 py-2 text-[var(--ink)]">
+            <blockquote
+              className={cn(
+                "my-2 border-s-2 ps-3 text-[13px]",
+                user ? "border-white/40 text-white/90" : "border-[var(--accent)] text-[var(--muted)]"
+              )}
+            >
               {children}
             </blockquote>
           ),
           code: ({ children }) => (
-            <code className="rounded bg-black/5 px-1 py-0.5 text-[12px]">{children}</code>
+            <code
+              className={cn(
+                "rounded px-1 py-0.5 text-[12px]",
+                user ? "bg-white/15" : "bg-black/5"
+              )}
+            >
+              {children}
+            </code>
           ),
         }}
       >
