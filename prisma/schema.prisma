@@ -145,6 +145,32 @@ model ProviderProfile {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   listings     ProviderListing[]
+  guestPulses  GuestStayPulse[]
+}
+
+/** Mid-stay pulse to catch silent unhappy guests before bad public reviews. */
+model GuestStayPulse {
+  id             String          @id @default(cuid())
+  providerId     String
+  provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  token          String          @unique @default(cuid())
+  guestName      String
+  guestEmail     String?
+  roomName       String
+  checkIn        DateTime
+  checkOut       DateTime
+  status         String          @default("IN_HOUSE") // IN_HOUSE | RECOVERING | SAVED | CHECKED_OUT
+  pulseScore     Int?
+  pulseNote      String?
+  pulseSentAt    DateTime?
+  pulseRepliedAt DateTime?
+  riskLevel      String          @default("WATCH") // LOW | WATCH | HIGH | SILENT
+  recoveryNote   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([providerId, status])
+  @@index([token])
 }
 
 model ProviderListing {

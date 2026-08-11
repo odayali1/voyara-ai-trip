@@ -34,6 +34,8 @@ import { Badge } from "@/components/ui/badge";
 import { CHART, tooltipStyle } from "@/lib/chart-theme";
 import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { ProviderTour } from "@/components/provider/provider-tour";
+import { GuestPulsePanel } from "@/components/provider/guest-pulse-panel";
 
 type Listing = {
   id: string;
@@ -88,7 +90,7 @@ type RoomDraft = {
   category?: string;
 };
 
-type Tab = "overview" | "rooms" | "ai" | "profile";
+type Tab = "overview" | "rooms" | "ai" | "pulse" | "profile";
 
 const ROOM_IMAGES = [
   "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=800&q=80",
@@ -334,12 +336,15 @@ export function HotelProviderStudio() {
       </section>
 
       <div className="px-4 py-6 md:px-10">
+        <ProviderTour onJump={(t) => setTab(t as Tab)} />
+
         <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-[var(--line)] bg-white/80 p-1.5 shadow-sm">
           {(
             [
               ["overview", "Overview"],
               ["rooms", "Rooms"],
               ["ai", "AI Import"],
+              ["pulse", "Silent Guest"],
               ["profile", "Hotel profile"],
             ] as const
           ).map(([id, label]) => (
@@ -453,9 +458,9 @@ export function HotelProviderStudio() {
                 <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
                   AI rate-sheet magic
                 </h2>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  Upload your PDF or Word room list. Voyara reads rooms, prices, and amenities —
-                  then fills your catalog in one click.
+                  <p className="mt-2 text-sm text-[var(--muted)]">
+                  Upload PDF, Word, or Excel. AI extracts rooms/offers into Voyara cards — review
+                  once, publish. No manual form filling.
                 </p>
                 <Button className="mt-5" onClick={() => setTab("ai")}>
                   <Wand2 className="h-4 w-4" />
@@ -570,7 +575,8 @@ export function HotelProviderStudio() {
                     Drop your hotel document
                   </h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
-                    PDF, Word (.docx), or plain text rate sheet. AI turns it into Voyara room cards.
+                    PDF, Word (.docx), Excel (.xlsx/.csv), or paste text. AI maps everything into
+                    your Voyara room template automatically.
                   </p>
                 </div>
               </div>
@@ -582,14 +588,14 @@ export function HotelProviderStudio() {
                   <FileText className="mb-3 h-8 w-8 text-[var(--accent)]" />
                 )}
                 <span className="text-sm font-semibold text-[var(--ink)]">
-                  {aiBusy ? "Voyara AI is reading your rooms…" : "Choose PDF / DOCX / TXT"}
+                  {aiBusy ? "Voyara AI is reading your rooms…" : "Choose PDF / Word / Excel / CSV"}
                 </span>
                 <span className="mt-1 text-xs text-[var(--muted)]">
-                  Or download the sample and upload it live in your demo
+                  Demo tip: download sample CSV → upload → Publish selected
                 </span>
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx,.txt,.md,.csv"
+                  accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls"
                   className="hidden"
                   disabled={aiBusy}
                   onChange={(e) => void runAiImport(e.target.files?.[0] || null)}
@@ -611,11 +617,20 @@ export function HotelProviderStudio() {
                     Extract with AI
                   </Button>
                   <Button asChild variant="secondary" size="sm">
+                    <a href="/samples/hotel-rooms-sample.csv" download>
+                      Sample Excel/CSV
+                    </a>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm">
                     <a href="/samples/hotel-rooms-sample.txt" download>
-                      Download sample sheet
+                      Sample TXT
                     </a>
                   </Button>
                 </div>
+                <p className="text-xs text-[var(--muted)]">
+                  Yes — after AI preview you click <strong>Publish selected</strong> and rooms land
+                  in your catalog with titles, prices, amenities, tags. No retyping.
+                </p>
               </div>
             </section>
 
@@ -686,6 +701,8 @@ export function HotelProviderStudio() {
             </section>
           </div>
         )}
+
+        {tab === "pulse" && <GuestPulsePanel />}
 
         {tab === "profile" && (
           <section className="mx-auto max-w-2xl rounded-3xl border border-[var(--line)] bg-white/90 p-6 shadow-sm">

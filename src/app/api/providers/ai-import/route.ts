@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Could not read that file. Try PDF, DOCX, or paste the room list as text.",
+            "Could not read that file. Try PDF, Word, Excel/CSV, or paste the room list as text.",
         },
         { status: 400 }
       );
