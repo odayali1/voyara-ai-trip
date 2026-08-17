@@ -177,27 +177,33 @@ model GuestStayPulse {
 
 /** SILA-style hotel guest journey stay. */
 model ConciergeStay {
-  id           String            @id @default(cuid())
-  providerId   String
-  provider     ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  token        String            @unique @default(cuid())
-  guestName    String
-  guestPhone   String?
-  roomName     String
-  checkIn      DateTime
-  checkOut     DateTime
+  id             String            @id @default(cuid())
+  providerId     String
+  provider       ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  token          String            @unique @default(cuid())
+  guestName      String
+  guestPhone     String?
+  roomName       String
+  checkIn        DateTime
+  checkOut       DateTime
   /** PRE_ARRIVAL | CHECKIN | UPSELL | IN_STAY | EXTRAS | PRE_DEPARTURE | POST_STAY | DONE */
-  stage        String            @default("PRE_ARRIVAL")
-  language     String            @default("ar")
-  rating       Int?
-  discountCode String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  messages     ConciergeMessage[]
-  requests     ConciergeRequest[]
+  stage          String            @default("PRE_ARRIVAL")
+  language       String            @default("ar")
+  rating         Int?
+  discountCode   String?
+  /** DEMO | VOYARA_BOOKING | MANUAL */
+  source         String            @default("DEMO")
+  listingId      String?
+  travelerUserId String?
+  tripLabel      String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  messages       ConciergeMessage[]
+  requests       ConciergeRequest[]
 
   @@index([providerId, stage])
   @@index([token])
+  @@index([guestPhone])
 }
 
 model ConciergeOffer {

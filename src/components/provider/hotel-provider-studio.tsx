@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { ProviderTour } from "@/components/provider/provider-tour";
 import { GuestPulsePanel } from "@/components/provider/guest-pulse-panel";
 import { ConciergeJourneyPanel } from "@/components/provider/concierge-journey-panel";
+import { JourneyMap } from "@/components/journey-map";
 
 type Listing = {
   id: string;
@@ -368,15 +369,23 @@ export function HotelProviderStudio() {
         </div>
 
         {tab === "overview" && (
-          <div className="mb-6 rounded-2xl border border-[var(--accent)]/20 bg-white/90 p-4 text-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-              Explain to stakeholders · Provider
-            </p>
-            <p className="mt-1 text-[var(--muted)]">
-              This login is the <strong className="text-[var(--ink)]">hotel</strong>. Open{" "}
-              <strong className="text-[var(--ink)]">SILA Journey</strong> to run the concierge deck,
-              then open the guest link (or WhatsApp) on a phone so they see both sides live.
-            </p>
+          <div className="mb-6 space-y-4">
+            <JourneyMap compact highlight={3} />
+            <div className="rounded-2xl border border-[var(--accent)]/20 bg-white/90 p-4 text-sm">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+                Explain to stakeholders · Provider
+              </p>
+              <p className="mt-1 text-[var(--muted)]">
+                You are the <strong className="text-[var(--ink)]">hotel</strong>. Travelers confirm
+                stays on <strong className="text-[var(--ink)]">Hotels</strong>. Those guests appear
+                in <strong className="text-[var(--ink)]">SILA Journey</strong>. You send WhatsApp
+                stages; guest replies 1/2/3; you Confirm. Full script:{" "}
+                <a href="/how-it-works" className="font-semibold text-[var(--accent)]">
+                  How it works
+                </a>
+                .
+              </p>
+            </div>
           </div>
         )}
 

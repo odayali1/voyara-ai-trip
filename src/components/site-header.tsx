@@ -25,7 +25,13 @@ export function SiteHeader({
       </Link>
       <nav className="flex items-center gap-2 md:gap-3">
         <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
+          <Link href="/how-it-works">How it works</Link>
+        </Button>
+        <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
           <Link href="/planner">Planner</Link>
+        </Button>
+        <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
+          <Link href="/listings">Hotels</Link>
         </Button>
         {session ? (
           <>

@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { ListingViewTracker } from "@/components/listing-view-tracker";
+import { StartStayButton } from "@/components/start-stay-button";
+import { JourneyMap } from "@/components/journey-map";
 
 export default async function ListingsPage() {
   const user = await getCurrentUser();
@@ -19,17 +21,22 @@ export default async function ListingsPage() {
       <div className="relative px-6 pb-16 pt-24 md:px-10">
         <SiteHeader role={user?.role} />
         <h1 className="font-[family-name:var(--font-display)] text-4xl text-[var(--sand)]">
-          Provider marketplace
+          Hotels & partners
         </h1>
-        <p className="mt-2 max-w-xl text-sm text-[var(--muted)]">
-          Hotels, tours, restaurants, transport, and experiences from Voyara partners.
+        <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
+          Step 2 of the Voyara loop: traveler picks a hotel and confirms a stay. That creates a
+          live SILA guest for the hotel (WhatsApp + provider dashboard).
         </p>
+
+        <div className="mt-6">
+          <JourneyMap compact highlight={2} />
+        </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {listings.map((listing) => (
             <article
               key={listing.id}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"
+              className="flex flex-col rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"
             >
               <ListingViewTracker
                 listingId={listing.id}
@@ -50,7 +57,14 @@ export default async function ListingsPage() {
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {listing.city}, {listing.country} · {listing.provider.businessName}
               </p>
-              <p className="mt-3 text-sm text-[var(--sand)]/90">{listing.description}</p>
+              <p className="mt-3 flex-1 text-sm text-[var(--sand)]/90">{listing.description}</p>
+              {listing.category === "HOTEL" ? (
+                <StartStayButton listingId={listing.id} hotelOnly />
+              ) : (
+                <p className="mt-4 text-xs text-[var(--muted)]">
+                  Experience listing — appears inside AI trip plans. Hotel stays use HOTEL cards.
+                </p>
+              )}
             </article>
           ))}
           {listings.length === 0 && (

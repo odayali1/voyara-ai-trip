@@ -179,16 +179,20 @@ export default function AdminPage() {
         </p>
         <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-[var(--muted)] md:grid-cols-3">
           <li>
-            <strong className="text-[var(--ink)]">Demand side:</strong> travelers chat with AI and
-            save trips — charts show land → chat → trip intent.
+            <strong className="text-[var(--ink)]">Demand:</strong> travelers plan trips — charts
+            show land → chat → trip intent.
           </li>
           <li>
-            <strong className="text-[var(--ink)]">Supply side:</strong> hotels join as providers;
-            approve them here so rooms enter recommendations.
+            <strong className="text-[var(--ink)]">Supply:</strong> approve hotels so rooms appear in
+            listings + AI plans.
           </li>
           <li>
-            <strong className="text-[var(--ink)]">Hotel product:</strong> SILA guest journey + Silent
-            Guest live on the provider login (not this page).
+            <strong className="text-[var(--ink)]">Stay ops:</strong> SILA WhatsApp lives on Provider
+            login — see{" "}
+            <a href="/how-it-works" className="font-semibold text-[var(--accent)]">
+              How it works A→Z
+            </a>
+            .
           </li>
         </ul>
       </div>

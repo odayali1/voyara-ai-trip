@@ -30,6 +30,8 @@ type Stay = {
   checkIn: string;
   checkOut: string;
   rating?: number | null;
+  source?: string | null;
+  tripLabel?: string | null;
   messages: Array<{ id: string; role: string; body: string; createdAt: string }>;
   requests: Array<{ id: string; title: string; status: string; stage?: string | null }>;
 };
@@ -120,7 +122,11 @@ export function ConciergeJourneyPanel() {
       } catch {
         /* ignore */
       }
-      toast.success("Guest journey link ready");
+      if (data.whatsapp?.sent?.ok || data.whatsapp?.sent === true) {
+        toast.success("Guest created + WhatsApp stage 1 sent — guest should reply 1/2/3");
+      } else {
+        toast.success("Guest created — tap Send stage on WhatsApp");
+      }
     } else if (data.whatsapp?.sent?.ok) {
       toast.success("Stage sent on WhatsApp");
     } else {
@@ -181,15 +187,37 @@ export function ConciergeJourneyPanel() {
           The smarter way to stay
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-white/85">
-          Hotel side of the stakeholder deck. Push each stage, watch guest replies, confirm
-          requests. Guest side = WhatsApp (or web chat link on a phone).
+          This is the <strong>hotel monitor</strong> after a traveler confirms a stay on Voyara
+          Hotels (or after you create a demo guest). You send numbered WhatsApp stages. Guest
+          replies <strong>1 / 2 / 3</strong>. You Confirm. Then Next stage.
         </p>
-        <div className="mt-4 grid gap-2 text-xs text-white/90 md:grid-cols-3">
-          <div className="rounded-xl bg-white/10 px-3 py-2">1. Select demo guest</div>
+        <div className="mt-4 grid gap-2 text-xs text-white/90 md:grid-cols-4">
+          <div className="rounded-xl bg-white/10 px-3 py-2">1. Guest appears here</div>
           <div className="rounded-xl bg-white/10 px-3 py-2">2. Send stage on WhatsApp</div>
-          <div className="rounded-xl bg-white/10 px-3 py-2">3. Guest replies → Confirm</div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">3. Guest replies 1/2/3</div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">4. Confirm → Next stage</div>
         </div>
+        <a
+          href="/how-it-works"
+          className="mt-4 inline-block text-xs font-semibold text-[#ffe3c8] underline-offset-2 hover:underline"
+        >
+          Full A → Z walkthrough
+        </a>
       </section>
+
+      <aside className="rounded-2xl border border-[var(--accent)]/25 bg-[color-mix(in_oklab,var(--accent)_8%,white)] p-4 text-sm text-[var(--muted)]">
+        <p className="font-semibold text-[var(--ink)]">What “Start journey” does</p>
+        <p className="mt-1">
+          Creates a demo guest stay + sends <strong className="text-[var(--ink)]">stage 1
+          (pre-arrival)</strong> to WhatsApp with a numbered menu. When the guest texts{" "}
+          <strong className="text-[var(--ink)]">2</strong>, SILA maps that to option 2 and shows a
+          request here for you to Confirm.
+        </p>
+        <p className="mt-2 text-xs">
+          Better demo path: Traveler → Hotels → Confirm stay — then the guest shows here as{" "}
+          <em>Voyara booking</em>.
+        </p>
+      </aside>
 
       <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -276,6 +304,7 @@ export function ConciergeJourneyPanel() {
                 <div className="font-medium text-[var(--ink)]">{s.guestName}</div>
                 <div className="text-xs text-[var(--muted)]">
                   {s.roomName} · {s.stage.replaceAll("_", " ")}
+                  {s.source === "VOYARA_BOOKING" ? " · from Voyara" : ""}
                 </div>
               </button>
             ))}
@@ -300,7 +329,7 @@ export function ConciergeJourneyPanel() {
               }
             >
               <Sparkles className="h-4 w-4" />
-              Start journey
+              Create guest + send WhatsApp stage 1
             </Button>
           </div>
         </section>

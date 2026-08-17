@@ -234,6 +234,8 @@ export async function POST(req: Request) {
         stage: "PRE_ARRIVAL",
         language,
         discountCode: "SILA-BACK10",
+        source: "DEMO",
+        tripLabel: "Hotel-created demo stay",
       },
     });
     const msg = stageMessage("PRE_ARRIVAL", guestName, language === "ar");
@@ -252,11 +254,25 @@ export async function POST(req: Request) {
       "PRE_ARRIVAL",
       language === "ar"
     );
+    // If auto-send skipped, still try once more when WA is open
+    let forced = wa;
+    if (wa.skipped && evolutionConfigured()) {
+      const conn = await getConnectionState();
+      if (conn.state === "open") {
+        forced = await maybeSendWhatsApp(stay.guestPhone, guestName, "PRE_ARRIVAL", language === "ar");
+      }
+    }
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     return NextResponse.json({
       stay,
       guestUrl: `${appUrl}/stay/${stay.token}`,
-      whatsapp: wa,
+      whatsapp: forced,
+      nextSteps: [
+        "Guest receives WhatsApp with options 1/2/3",
+        "Guest replies 2",
+        "Request appears here → Confirm",
+        "Click Next stage for check-in offers",
+      ],
     });
   }
 

@@ -125,7 +125,11 @@ export default function LoginPage() {
           Voyara
         </Link>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Welcome back — use a demo fill for stakeholder walkthroughs.
+          Stakeholder demo: fill a role, then follow{" "}
+          <Link href="/how-it-works" className="font-semibold text-[var(--accent)]">
+            How it works A → Z
+          </Link>
+          . Traveler confirms a hotel → Provider SILA sees the guest → WhatsApp replies.
         </p>
         <div className="mt-6">
           <Suspense>
