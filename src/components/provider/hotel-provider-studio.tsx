@@ -467,20 +467,20 @@ export function HotelProviderStudio() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-[#3b0764]/20 bg-[linear-gradient(160deg,#1e1b4b,#6d28d9)] p-5 text-white shadow-sm xl:col-span-2">
+              <section className="rounded-3xl border border-[var(--accent)]/25 bg-[linear-gradient(160deg,#0f243a,#0f9c8c)] p-5 text-white shadow-sm xl:col-span-2">
                 <div className="mb-3 inline-flex rounded-2xl bg-white/15 p-3">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <h2 className="font-[family-name:var(--font-display)] text-2xl">
                   SILA guest journey
                 </h2>
-                <p className="mt-2 text-sm text-violet-50/90">
+                <p className="mt-2 text-sm text-white/90">
                   Full Concierge Guest Journey deck: hotel controls stages; guest answers on
                   WhatsApp or the web chat link. Upsells, mid-stay care, late checkout, rating +
                   discount code.
                 </p>
                 <Button
-                  className="mt-5 bg-white text-[#1e1b4b] hover:bg-violet-100"
+                  className="mt-5 bg-[#ffe3c8] text-[#0f243a] hover:bg-white"
                   onClick={() => setTab("concierge")}
                 >
                   Open Concierge Journey

@@ -148,30 +148,52 @@ export function extractInboundText(payload: unknown): {
   number: string | null;
   text: string | null;
 } {
-  const root = payload as {
-    event?: string;
-    data?:
-      | {
-          key?: { fromMe?: boolean; remoteJid?: string };
-          message?: Record<string, unknown>;
-        }
-      | Array<{
-          key?: { fromMe?: boolean; remoteJid?: string };
-          message?: Record<string, unknown>;
-        }>;
-    key?: { fromMe?: boolean; remoteJid?: string };
-    message?: Record<string, unknown>;
+  const root = payload as Record<string, unknown>;
+  const rawData = root.data ?? root;
+  const data = (Array.isArray(rawData) ? rawData[0] : rawData) as Record<string, unknown>;
+  const key = (data.key || {}) as {
+    fromMe?: boolean;
+    remoteJid?: string;
+    remoteJidAlt?: string;
+    participant?: string;
+    participantAlt?: string;
   };
-
-  const data = Array.isArray(root.data) ? root.data[0] : root.data || root;
-  const key = data.key || {};
   const fromMe = Boolean(key.fromMe);
+
   const jid = String(key.remoteJid || "");
-  // Ignore group / status broadcasts
   if (jid.endsWith("@g.us") || jid.includes("status@broadcast")) {
     return { fromMe: true, number: null, text: null };
   }
-  const number = normalizeWhatsAppNumber(jid.split("@")[0] || "");
+
+  const candidates = [
+    data.senderPn,
+    data.sender_pn,
+    data.participant,
+    key.remoteJidAlt,
+    key.participantAlt,
+    key.participant,
+    key.remoteJid,
+  ]
+    .filter(Boolean)
+    .map(String);
+
+  let number: string | null = null;
+  for (const c of candidates) {
+    // Prefer phone JIDs over @lid
+    if (c.includes("@lid") && !c.includes("@s.whatsapp")) continue;
+    const cleaned = c.split("@")[0].split(":")[0];
+    number = normalizeWhatsAppNumber(cleaned);
+    if (number) break;
+  }
+  // Last chance: any digits from lid-adjacent fields still useful if length ok
+  if (!number) {
+    for (const c of candidates) {
+      const cleaned = c.split("@")[0].split(":")[0];
+      number = normalizeWhatsAppNumber(cleaned);
+      if (number && number.length >= 10 && number.length <= 15) break;
+      number = null;
+    }
+  }
 
   const message = (data.message || {}) as Record<string, unknown>;
   let text: string | null = null;
@@ -193,6 +215,13 @@ export function extractInboundText(payload: unknown): {
     typeof (message.listResponseMessage as { title?: string }).title === "string"
   ) {
     text = (message.listResponseMessage as { title: string }).title;
+  } else if (
+    message.templateButtonReplyMessage &&
+    typeof (message.templateButtonReplyMessage as { selectedDisplayText?: string })
+      .selectedDisplayText === "string"
+  ) {
+    text = (message.templateButtonReplyMessage as { selectedDisplayText: string })
+      .selectedDisplayText;
   }
 
   return { fromMe, number, text: text?.trim() || null };

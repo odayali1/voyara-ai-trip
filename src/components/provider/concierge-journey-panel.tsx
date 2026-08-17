@@ -86,6 +86,16 @@ export function ConciergeJourneyPanel() {
     void loadWa();
   }, []);
 
+  useEffect(() => {
+    if (!wa?.configured || wa.state !== "open") return;
+    // Keep webhook pointed at this Voyara deployment
+    void fetch("/api/providers/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "setup_webhook" }),
+    }).catch(() => undefined);
+  }, [wa?.configured, wa?.state]);
+
   async function act(action: string, extra?: Record<string, unknown>) {
     if (!selected && action !== "create_stay") return;
     setBusy(true);
@@ -163,20 +173,20 @@ export function ConciergeJourneyPanel() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl border border-[#3b0764]/20 bg-[linear-gradient(120deg,#1e1b4b,#4c1d95_45%,#9d174d)] p-6 text-white shadow-lg">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-violet-100/80">
+      <section className="overflow-hidden rounded-3xl border border-[var(--accent)]/25 bg-[linear-gradient(120deg,#0f243a,#16324f_40%,#0f9c8c)] p-6 text-white shadow-lg">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dede0]">
           SILA Concierge
         </p>
         <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl md:text-4xl">
           The smarter way to stay
         </h2>
-        <p className="mt-2 max-w-2xl text-sm text-violet-50/90">
+        <p className="mt-2 max-w-2xl text-sm text-white/85">
           Hotel side of the stakeholder deck. Push each stage, watch guest replies, confirm
           requests. Guest side = WhatsApp (or web chat link on a phone).
         </p>
-        <div className="mt-4 grid gap-2 text-xs text-violet-100/90 md:grid-cols-3">
+        <div className="mt-4 grid gap-2 text-xs text-white/90 md:grid-cols-3">
           <div className="rounded-xl bg-white/10 px-3 py-2">1. Select demo guest</div>
-          <div className="rounded-xl bg-white/10 px-3 py-2">2. Send stage / Next stage</div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">2. Send stage on WhatsApp</div>
           <div className="rounded-xl bg-white/10 px-3 py-2">3. Guest replies → Confirm</div>
         </div>
       </section>
@@ -259,7 +269,7 @@ export function ConciergeJourneyPanel() {
                 className={cn(
                   "w-full rounded-2xl border p-3 text-start transition",
                   selected?.id === s.id
-                    ? "border-violet-400 bg-violet-50"
+                    ? "border-[var(--accent)] bg-[color-mix(in_oklab,var(--accent)_12%,white)]"
                     : "border-[var(--line)] hover:bg-black/[0.02]"
                 )}
               >
@@ -355,7 +365,7 @@ export function ConciergeJourneyPanel() {
                     className={cn(
                       "min-w-[110px] rounded-2xl border px-3 py-2 text-center",
                       i <= stageIndex
-                        ? "border-violet-300 bg-violet-50 text-violet-950"
+                        ? "border-[var(--accent)]/40 bg-[color-mix(in_oklab,var(--accent)_10%,white)] text-[var(--ink)]"
                         : "border-[var(--line)] text-[var(--muted)]"
                     )}
                   >
@@ -370,8 +380,8 @@ export function ConciergeJourneyPanel() {
               </div>
 
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                <div className="rounded-2xl border border-[var(--line)] bg-[#f8f5ff] p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-800">
+                <div className="rounded-2xl border border-[var(--line)] bg-[color-mix(in_oklab,var(--accent)_6%,white)] p-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
                     Journey chat preview
                   </p>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
@@ -381,7 +391,7 @@ export function ConciergeJourneyPanel() {
                         className={cn(
                           "max-w-[92%] rounded-xl px-3 py-2 text-xs whitespace-pre-wrap",
                           m.role === "guest"
-                            ? "ms-auto bg-violet-600 text-white"
+                            ? "ms-auto bg-[var(--accent)] text-white"
                             : "bg-white text-[var(--ink)] border border-[var(--line)]"
                         )}
                         dir="auto"

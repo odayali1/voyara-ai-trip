@@ -64,28 +64,31 @@ export default function GuestStayPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0b1220]">
-        <Loader2 className="h-6 w-6 animate-spin text-violet-300" />
+      <main className="flex min-h-screen items-center justify-center bg-[#0f243a]">
+        <Loader2 className="h-6 w-6 animate-spin text-[#0f9c8c]" />
       </main>
     );
   }
 
   return (
     <main
-      className="min-h-screen bg-[radial-gradient(circle_at_20%_10%,#4c1d95,transparent_35%),radial-gradient(circle_at_80%_0%,#83184355,transparent_30%),#0b1220] text-white"
+      className="min-h-screen bg-[radial-gradient(circle_at_15%_0%,#0f9c8c55,transparent_40%),radial-gradient(circle_at_90%_10%,#ff8a4c44,transparent_35%),linear-gradient(165deg,#0f243a,#16324f_55%,#0b1a2a)] text-white"
       dir="auto"
     >
       <div className="mx-auto flex min-h-screen max-w-lg flex-col">
-        <header className="border-b border-white/10 px-5 py-4 backdrop-blur">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-violet-200/80">
+        <header className="border-b border-white/10 px-5 py-5 backdrop-blur-md">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dede0]">
             SILA · The smarter way to stay
           </p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl">{hotelName}</h1>
-          <p className="text-xs text-white/60">
-            {guestName ? `أهلاً ${guestName}` : "Guest journey"} · {stage.replaceAll("_", " ")}
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+            {hotelName}
+          </h1>
+          <p className="mt-1 text-sm text-white/70">
+            {guestName ? `أهلاً ${guestName}` : "Guest journey"}
+            {stage ? ` · ${stage.replaceAll("_", " ").toLowerCase()}` : ""}
           </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-violet-100/75">
-            You are the guest. Tap a reply — the hotel sees it on their SILA Journey dashboard.
+          <p className="mt-2 text-[12px] leading-relaxed text-white/55">
+            You are the guest. Tap a reply — the hotel sees it instantly on SILA Journey.
           </p>
         </header>
 
@@ -94,10 +97,10 @@ export default function GuestStayPage() {
             <div
               key={m.id}
               className={cn(
-                "max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow",
+                "max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-lg",
                 m.role === "guest"
-                  ? "ms-auto bg-violet-500 text-white"
-                  : "bg-white/10 text-white/95 border border-white/10"
+                  ? "ms-auto bg-[#0f9c8c] text-white"
+                  : "border border-white/10 bg-white/10 text-white/95"
               )}
             >
               {m.body}
@@ -107,8 +110,8 @@ export default function GuestStayPage() {
         </div>
 
         {choices.length > 0 && stage !== "DONE" && (
-          <div className="border-t border-white/10 bg-black/25 p-4 backdrop-blur">
-            <p className="mb-2 text-xs text-white/60">اختر رد سريع / Quick reply</p>
+          <div className="border-t border-white/10 bg-[#0b1a2a]/80 p-4 backdrop-blur-md">
+            <p className="mb-2 text-xs text-white/55">اختر رد سريع · Quick reply</p>
             <div className="flex flex-wrap gap-2">
               {choices.map((c) => (
                 <Button
@@ -116,7 +119,7 @@ export default function GuestStayPage() {
                   size="sm"
                   disabled={sending}
                   variant="secondary"
-                  className="rounded-full bg-white/95 text-[#1b1030] hover:bg-violet-100"
+                  className="rounded-full border-0 bg-[#ffe3c8] text-[#0f243a] hover:bg-white"
                   onClick={() => void choose(c)}
                 >
                   {c}

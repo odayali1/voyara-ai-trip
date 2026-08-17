@@ -1,12 +1,45 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { extractInboundText, normalizeWhatsAppNumber, sendText } from "@/lib/evolution";
+import {
+  extractInboundText,
+  normalizeWhatsAppNumber,
+  sendText,
+} from "@/lib/evolution";
 
 export const dynamic = "force-dynamic";
 
+const DEMO_PHONE = process.env.SILA_DEMO_WHATSAPP || "962796917829";
+
+async function findStayForNumber(number: string) {
+  const stays = await db.conciergeStay.findMany({
+    where: { stage: { not: "DONE" } },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+  });
+
+  const exact = stays.find((s) => normalizeWhatsAppNumber(s.guestPhone) === number);
+  if (exact) return exact;
+
+  const fuzzy = stays.find((s) => {
+    const p = normalizeWhatsAppNumber(s.guestPhone);
+    if (!p) return false;
+    return p.endsWith(number.slice(-9)) || number.endsWith(p.slice(-9));
+  });
+  if (fuzzy) return fuzzy;
+
+  // Demo fallback: guest WhatsApp is the linked demo phone
+  const demo = normalizeWhatsAppNumber(DEMO_PHONE);
+  if (demo && (number === demo || number.endsWith(demo.slice(-9)) || demo.endsWith(number.slice(-9)))) {
+    return stays[0] || null;
+  }
+
+  // Last resort for live demos: single active stay
+  if (stays.length === 1) return stays[0];
+  return null;
+}
+
 /**
  * Evolution API → Voyara inbound WhatsApp webhook.
- * Maps guest replies to ConciergeStay by phone number.
  */
 export async function POST(req: Request) {
   let payload: unknown;
@@ -22,32 +55,34 @@ export async function POST(req: Request) {
       ""
   ).toLowerCase();
 
-  // Ignore non-message events quietly
-  if (event && !event.includes("messages.upsert") && !event.includes("messages_upsert")) {
+  // Accept messages.upsert / MESSAGES_UPSERT / empty (some proxies strip event)
+  const isMessageEvent =
+    !event ||
+    event.includes("messages.upsert") ||
+    event.includes("messages_upsert") ||
+    event.includes("messagesupsert");
+
+  if (event && !isMessageEvent) {
     return NextResponse.json({ ok: true, ignored: event });
   }
 
   const { fromMe, number, text } = extractInboundText(payload);
-  if (fromMe || !number || !text) {
-    return NextResponse.json({ ok: true, skipped: true });
+  if (fromMe || !text) {
+    return NextResponse.json({ ok: true, skipped: true, reason: fromMe ? "fromMe" : "no-text" });
   }
 
-  const stays = await db.conciergeStay.findMany({
-    where: { stage: { not: "DONE" } },
-    orderBy: { updatedAt: "desc" },
-    take: 40,
-  });
-
-  const stay =
-    stays.find((s) => normalizeWhatsAppNumber(s.guestPhone) === number) ||
-    stays.find((s) => {
-      const p = normalizeWhatsAppNumber(s.guestPhone);
-      return p && (p.endsWith(number.slice(-9)) || number.endsWith(p.slice(-9)));
-    });
-
+  const stay = number ? await findStayForNumber(number) : await findStayForNumber(DEMO_PHONE);
   if (!stay) {
+    // Still acknowledge so guest isn't left hanging in demos
+    const to = number || DEMO_PHONE;
+    await sendText(
+      to,
+      "SILA هنا 👋 ابدأ الرحلة من لوحة الفندق (SILA Journey) ثم أعد إرسال رقم الخيار."
+    );
     return NextResponse.json({ ok: true, unmatched: number });
   }
+
+  const replyTo = number || normalizeWhatsAppNumber(stay.guestPhone) || DEMO_PHONE;
 
   await db.conciergeMessage.create({
     data: {
@@ -60,41 +95,35 @@ export async function POST(req: Request) {
   });
 
   const skip =
-    /لاحقا|تمام|مو الآن|لا شكرا|all set|maybe later|not now|no thanks|i'm all set|^تمام$/i.test(
+    /لاحقا|تمام(?!\s)|مو الآن|لا شكرا|all set|maybe later|not now|no thanks|i'm all set|^تمام$/i.test(
       text
     );
-  const ratingMatch = text.match(/^[1-5]$/);
+  const ratingMatch = text.trim().match(/^[1-5]$/);
+
+  let reply = "";
 
   if (stay.stage === "POST_STAY" && ratingMatch) {
     await db.conciergeStay.update({
       where: { id: stay.id },
-      data: { rating: Number(text), stage: "DONE" },
+      data: { rating: Number(text.trim()), stage: "DONE" },
     });
-    const reply =
+    reply =
       stay.language === "ar"
-        ? `شكراً لتقييمك ${text}/5 💜 كود خصمك: ${stay.discountCode || "SILA-BACK10"}`
-        : `Thanks for rating us ${text}/5 💜 Your code: ${stay.discountCode || "SILA-BACK10"}`;
-    await db.conciergeMessage.create({
-      data: {
-        stayId: stay.id,
-        role: "hotel",
-        stage: "POST_STAY",
-        body: reply,
-        choices: [],
-      },
-    });
-    await sendText(number, reply);
+        ? `شكراً لتقييمك ${text.trim()}/5 💜 كود خصمك: ${stay.discountCode || "SILA-BACK10"}`
+        : `Thanks for rating us ${text.trim()}/5 💜 Your code: ${stay.discountCode || "SILA-BACK10"}`;
   } else if (!skip) {
     const needHelp = /مساعدة|need help|help|بدي مساعدة/i.test(text);
-    // Map numeric choice "1" / "2" to last hotel message choices when possible
-    let title = text;
-    const lastHotel = await db.conciergeMessage.findFirst({
+    let title = text.trim();
+    const recentHotel = await db.conciergeMessage.findMany({
       where: { stayId: stay.id, role: "hotel" },
       orderBy: { createdAt: "desc" },
+      take: 10,
     });
-    const n = Number(text.trim());
-    if (lastHotel?.choices?.length && n >= 1 && n <= lastHotel.choices.length) {
-      title = lastHotel.choices[n - 1];
+    const hotelForChoices = recentHotel.find((m) => m.choices.length > 0);
+    const n = Number(title);
+    const choices = hotelForChoices?.choices || [];
+    if (choices.length && n >= 1 && n <= choices.length) {
+      title = choices[n - 1];
     }
 
     await db.conciergeRequest.create({
@@ -107,7 +136,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const reply =
+    reply =
       stay.language === "ar"
         ? needHelp
           ? "وصلتنا ملاحظتك — فريق الفندق بيتواصل معك فوراً 🙏"
@@ -115,33 +144,37 @@ export async function POST(req: Request) {
         : needHelp
           ? "Got it — the hotel team will help you right away."
           : `Request received: ${title}. We'll confirm shortly ✅`;
-
-    await db.conciergeMessage.create({
-      data: {
-        stayId: stay.id,
-        role: "hotel",
-        stage: stay.stage,
-        body: reply,
-        choices: [],
-      },
-    });
-    await sendText(number, reply);
   } else {
-    const reply =
+    reply =
       stay.language === "ar"
         ? "حاضر! إذا احتجت أي شي، نحنا موجودين 🌿"
         : "Perfect — ping us anytime you need something 🌿";
-    await db.conciergeMessage.create({
-      data: {
-        stayId: stay.id,
-        role: "hotel",
-        stage: stay.stage,
-        body: reply,
-        choices: [],
-      },
-    });
-    await sendText(number, reply);
   }
 
-  return NextResponse.json({ ok: true, stayId: stay.id });
+  await db.conciergeMessage.create({
+    data: {
+      stayId: stay.id,
+      role: "hotel",
+      stage: stay.stage,
+      body: reply,
+      choices: [],
+    },
+  });
+
+  const sent = await sendText(replyTo, reply);
+  return NextResponse.json({
+    ok: true,
+    stayId: stay.id,
+    replyTo,
+    sent: sent.ok,
+    sendError: sent.error || null,
+  });
+}
+
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    service: "sila-evolution-webhook",
+    demoPhone: DEMO_PHONE,
+  });
 }
