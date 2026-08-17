@@ -36,7 +36,12 @@ type Stay = {
   guestIntel?: {
     travelerType: string | null;
     interests: string[];
-    lastDestination: string | null;
+    travelingWith: string | null;
+    careNeeds: string[];
+    healthNotes: string | null;
+    pace: string | null;
+    preferences: string[];
+    staffNote: string | null;
   } | null;
   messages: Array<{ id: string; role: string; body: string; createdAt: string }>;
   requests: Array<{ id: string; title: string; status: string; stage?: string | null }>;
@@ -380,16 +385,31 @@ export function ConciergeJourneyPanel() {
                     {new Date(selected.checkOut).toLocaleDateString()}
                   </p>
                   {selected.guestIntel && (
-                    <p className="mt-1 text-xs text-[var(--muted)]">
-                      Guest vibe (limited):{" "}
-                      {[
-                        selected.guestIntel.travelerType,
-                        ...(selected.guestIntel.interests || []),
-                        selected.guestIntel.lastDestination,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "learning from stay"}
-                    </p>
+                    <div className="mt-2 max-w-xl">
+                      {selected.guestIntel.staffNote && (
+                        <p className="text-sm leading-relaxed text-[var(--ink)]">
+                          {selected.guestIntel.staffNote}
+                        </p>
+                      )}
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        {[
+                          selected.guestIntel.travelerType,
+                          selected.guestIntel.travelingWith
+                            ? `with ${selected.guestIntel.travelingWith}`
+                            : "",
+                          selected.guestIntel.pace,
+                          ...(selected.guestIntel.interests || []),
+                          ...(selected.guestIntel.preferences || []).slice(0, 2),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "learning from stay"}
+                      </p>
+                      {selected.guestIntel.careNeeds?.length > 0 && (
+                        <p className="mt-1 text-[11px] font-medium text-amber-800">
+                          Care: {selected.guestIntel.careNeeds.join(" · ")}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">

@@ -19,6 +19,11 @@ import {
   lookupKnownPlace,
 } from "@/lib/destinations";
 import { ensureJordanPartnerHotels } from "@/lib/ensure-jordan-hotels";
+import {
+  intelFromGuest,
+  learnGuestFromConversation,
+  silentCareBlock,
+} from "@/lib/guest-intel";
 
 function mapsLink(title: string, area: string, lat?: number | null, lng?: number | null) {
   if (lat != null && lng != null) {
@@ -207,13 +212,40 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     guest.lastDestination || trip.destination
   );
 
+  const historyForIntel = await db.chatMessage.findMany({
+    where: { tripId: trip.id },
+    orderBy: { createdAt: "asc" },
+    take: 24,
+  });
+  const convoForIntel = historyForIntel
+    .map((m) => `${m.role === "user" ? "Traveler" : "Voyara"}: ${m.content}`)
+    .join("\n");
+  const bookingNow =
+    looksLikeBooking(text) ||
+    /^book$/i.test(text.trim()) ||
+    text.trim() === "احجز" ||
+    (guest.lastOfferIds.length > 0 &&
+      Number(text.trim()) >= 1 &&
+      Number(text.trim()) <= guest.lastOfferIds.length);
+  const trivialTurn =
+    text.trim().length < 8 ||
+    /^(ok|تمام|شكرا|thanks|1|2|3|احجز|book|hi|hello|مرحبا|السلام عليكم|وعليكم السلام)$/i.test(
+      text.trim()
+    );
+  const deepIntel = bookingNow || !trivialTurn;
+  if (convoForIntel.trim().length >= 8) {
+    await learnGuestFromConversation(guest.id, convoForIntel, { deep: deepIntel });
+  }
+  const freshGuest = (await db.whatsAppGuest.findUnique({ where: { id: guest.id } })) || guest;
+  const intel = intelFromGuest(freshGuest);
+
   const pick = Number(text.trim());
   if (guest.lastOfferIds.length && pick >= 1 && pick <= guest.lastOfferIds.length) {
     const listingId = guest.lastOfferIds[pick - 1];
     const booked = await fulfillBooking({
-      guestName: guest.displayName || user.name,
+      guestName: freshGuest.displayName || user.name,
       guestPhone: phone,
-      destination: destGuess || guest.lastDestination || trip.destination,
+      destination: destGuess || freshGuest.lastDestination || trip.destination,
       listingId,
       travelerUserId: user.id,
       tripId: trip.id,
@@ -230,9 +262,9 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
   }
 
   if (looksLikeBooking(text) || /^book$/i.test(text.trim()) || text.trim() === "احجز") {
-    const dest = destGuess || guest.lastDestination || trip.destination;
+    const dest = destGuess || freshGuest.lastDestination || trip.destination;
     const booked = await fulfillBooking({
-      guestName: guest.displayName || user.name,
+      guestName: freshGuest.displayName || user.name,
       guestPhone: phone,
       destination: dest,
       listingId: guest.lastOfferIds[0] || null,
@@ -293,7 +325,8 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
   const system = buildWhatsAppHermesPrompt({
     listingsLine,
     replyLanguage: lang,
-    lastDestination: destGuess || guest.lastDestination,
+    lastDestination: destGuess || freshGuest.lastDestination,
+    careBlock: silentCareBlock(intel),
   });
 
   const { text: reply } = await generateText({
@@ -321,11 +354,20 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
         prompt: buildItineraryJsonPrompt({
           userRequest: text,
           assistantReply: reply.slice(0, 5000),
-          travelerType: guest.travelerType,
-          budgetBand: guest.budgetBand,
-          interests: guest.interests,
+          travelerType: intel.travelerType,
+          budgetBand: intel.budgetBand,
+          interests: intel.interests,
           listingsLine,
           replyLanguage: lang,
+          careLine: [
+            intel.healthNotes,
+            intel.careNeeds.join(", "),
+            intel.pace ? `pace: ${intel.pace}` : "",
+            intel.companions ? `with ${intel.companions}` : "",
+            intel.preferences.join(", "),
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
         }),
       });
       plan = await enrichStops(parseItineraryFromText(jsonText));

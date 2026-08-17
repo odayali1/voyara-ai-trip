@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { assertApiRole } from "@/lib/auth-server";
 import { db } from "@/lib/db";
 import { resetAllWhatsAppSessions, resetWhatsAppSession } from "@/lib/whatsapp-reset";
+import { hydrateThinGuestIntel } from "@/lib/guest-intel";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +58,22 @@ export async function GET() {
     : [];
   const phoneByTrip = Object.fromEntries(tripIds.map((t) => [t.id, t.guestPhone]));
 
+  const hydratedGuests = await Promise.all(
+    guests.map(async (g) => {
+      const convo = messages
+        .filter((m) => phoneByTrip[m.tripId] === g.phone)
+        .slice()
+        .reverse()
+        .map((m) => `${m.role === "user" ? "Traveler" : "Voyara"}: ${m.content}`)
+        .join("\n");
+      const intel = await hydrateThinGuestIntel(g.id, convo);
+      return intel ? { ...g, ...intel } : g;
+    })
+  );
+
   return NextResponse.json({
-    count: guests.length,
-    guests: guests.map((g) => ({
+    count: hydratedGuests.length,
+    guests: hydratedGuests.map((g) => ({
       ...g,
       trips: trips.filter((t) => t.guestPhone === g.phone).slice(0, 4),
       stays: stays.filter((s) => s.guestPhone === g.phone).slice(0, 4),

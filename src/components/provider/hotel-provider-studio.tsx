@@ -119,6 +119,12 @@ type Arrival = {
   tripCity: string | null;
   vibe: string[];
   travelerType: string | null;
+  travelingWith: string | null;
+  careNeeds: string[];
+  healthNotes: string | null;
+  pace: string | null;
+  preferences: string[];
+  staffNote: string | null;
   openRequests: string[];
 };
 
@@ -427,9 +433,9 @@ export function HotelProviderStudio() {
             <Surface>
               <div className="mb-3 flex items-end justify-between gap-2">
                 <div>
-                  <Eyebrow>Arriving guests · limited intel</Eyebrow>
+                  <Eyebrow>Arriving guests · care brief</Eyebrow>
                   <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-                    What the hotel needs - not the full chat
+                    Who is coming — enough to take better care
                   </h2>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => setTab("concierge")}>
@@ -439,31 +445,48 @@ export function HotelProviderStudio() {
               <div className="space-y-2">
                 {arrivals.length === 0 && (
                   <p className="text-sm text-[var(--muted)]">
-                    No arrivals yet. When a traveler books on WhatsApp or the planner, they appear
-                    here with first name, room, dates, and trip vibe.
+                    No arrivals yet. When a traveler books, they appear here with who they are
+                    traveling with, health/care flags, and what would make the stay easier.
                   </p>
                 )}
                 {arrivals.map((a) => (
                   <article
                     key={a.stayId}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--panel-solid)] px-4 py-3 text-sm"
+                    className="rounded-2xl border border-[var(--line)] bg-[var(--panel-solid)] px-4 py-3 text-sm"
                   >
-                    <div>
-                      <span className="font-semibold text-[var(--ink)]">{a.firstName}</span>
-                      <span className="text-[var(--muted)]">
-                        {" "}
-                        · {a.room} · {a.phoneMasked}
-                      </span>
-                      <p className="mt-1 text-xs text-[var(--muted)]">
-                        {[a.travelerType, a.tripCity, ...(a.vibe || [])]
-                          .filter(Boolean)
-                          .join(" · ") || "Vibe still learning"}
-                        {a.openRequests.length
-                          ? ` · ${a.openRequests.length} open request(s)`
-                          : ""}
-                      </p>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <span className="font-semibold text-[var(--ink)]">{a.firstName}</span>
+                        <span className="text-[var(--muted)]">
+                          {" "}
+                          · {a.room} · {a.phoneMasked}
+                        </span>
+                      </div>
+                      <Badge variant="outline">{a.stage.replaceAll("_", " ")}</Badge>
                     </div>
-                    <Badge variant="outline">{a.stage.replaceAll("_", " ")}</Badge>
+                    {a.staffNote && (
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--ink)]">{a.staffNote}</p>
+                    )}
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {[
+                        a.travelerType,
+                        a.travelingWith ? `with ${a.travelingWith}` : "",
+                        a.pace,
+                        a.tripCity,
+                        ...(a.vibe || []),
+                        ...(a.preferences || []).slice(0, 2),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "Vibe still learning"}
+                      {a.openRequests.length
+                        ? ` · ${a.openRequests.length} open request(s)`
+                        : ""}
+                    </p>
+                    {a.careNeeds?.length > 0 && (
+                      <p className="mt-2 text-[11px] font-medium text-amber-800">
+                        Care: {a.careNeeds.join(" · ")}
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>

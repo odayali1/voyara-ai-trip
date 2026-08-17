@@ -132,6 +132,10 @@ export default function AdminPage() {
       companions: string | null;
       homeCity: string | null;
       memorySummary: string | null;
+      healthNotes: string | null;
+      careNeeds: string[];
+      preferences: string[];
+      pace: string | null;
       lastDestination: string | null;
       lastTripTitle: string | null;
       messageCount: number;
@@ -355,7 +359,7 @@ export default function AdminPage() {
                 {waGuests?.count ?? 0} chats
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Temporary: reset a number so the next WhatsApp feels brand new. Or text RESET.
+                Full traveler dossier — health, companions, pace, preferences. Reset a number so the next WhatsApp feels brand new, or text RESET.
               </p>
             </div>
             <Button size="sm" variant="secondary" disabled={resetBusy} onClick={() => void resetWhatsApp(true)}>
@@ -388,10 +392,32 @@ export default function AdminPage() {
                   </Button>
                 </div>
                 <p className="mt-3 text-xs text-[var(--muted)]">
-                  {(g.interests || []).join(" · ") || "Interests learning"}
-                  {g.companions ? ` · ${g.companions}` : ""}
-                  {g.homeCity ? ` · from ${g.homeCity}` : ""}
+                  {[g.travelerType, g.budgetBand, g.pace, g.homeCity ? `from ${g.homeCity}` : ""]
+                    .filter(Boolean)
+                    .join(" · ") || "Learning this traveler"}
+                  {g.companions ? ` · with ${g.companions}` : ""}
                 </p>
+                {(g.careNeeds?.length || g.healthNotes) && (
+                  <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                      Care
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--ink)]">
+                      {g.healthNotes || (g.careNeeds || []).join(" · ")}
+                    </p>
+                    {(g.careNeeds || []).length > 0 && (
+                      <p className="mt-1 text-[11px] text-amber-900/80">{g.careNeeds.join(" · ")}</p>
+                    )}
+                  </div>
+                )}
+                {(g.interests?.length > 0 || g.preferences?.length > 0) && (
+                  <p className="mt-3 text-xs text-[var(--muted)]">
+                    {g.interests?.length ? `Interests: ${g.interests.join(" · ")}` : ""}
+                    {g.preferences?.length
+                      ? `${g.interests?.length ? " · " : ""}Prefers ${g.preferences.join(", ")}`
+                      : ""}
+                  </p>
+                )}
                 {g.memorySummary && (
                   <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]">{g.memorySummary}</p>
                 )}

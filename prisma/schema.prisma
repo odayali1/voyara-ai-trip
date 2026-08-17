@@ -146,6 +146,10 @@ model WhatsAppGuest {
   lastDestination  String?
   lastTripTitle    String?
   lastOfferIds     String[] @default([])
+  healthNotes      String?
+  careNeeds        String[] @default([])
+  preferences      String[] @default([])
+  pace             String?
   messageCount     Int      @default(0)
   firstSeenAt      DateTime @default(now())
   lastSeenAt       DateTime @default(now())

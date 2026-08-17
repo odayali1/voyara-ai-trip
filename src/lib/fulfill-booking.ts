@@ -97,7 +97,16 @@ export async function fulfillBooking(input: {
       .catch(() => undefined);
   }
 
+  const waGuest = await db.whatsAppGuest.findUnique({ where: { phone: guestPhone } });
+  const careHint =
+    waGuest?.careNeeds?.length || waGuest?.companions
+      ? language === "ar"
+        ? `\nرتبنا لكم إقامة هادية${waGuest.companions ? ` مع ${waGuest.companions}` : ""} — سبا قريب وبدون مشي طويل.`
+        : `\nWe kept the stay easy${waGuest.companions ? ` for you and ${waGuest.companions}` : ""} — spa close, no long walks.`
+      : "";
+
   const msg = stageMessage("PRE_ARRIVAL", input.guestName, language === "ar");
+  msg.body = `${msg.body}${careHint}`;
   await db.conciergeMessage.create({
     data: {
       stayId: stay.id,

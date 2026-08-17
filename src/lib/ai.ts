@@ -84,6 +84,7 @@ export function buildItineraryJsonPrompt(input: {
   listingsLine: string;
   replyLanguage?: ReplyLanguage;
   forceEnglish?: boolean;
+  careLine?: string | null;
 }) {
   const lang = input.forceEnglish
     ? "en"
@@ -101,6 +102,8 @@ ${input.assistantReply}
 Traveler type: ${input.travelerType || "COUPLE"}
 Budget: ${input.budgetBand || "MID"}
 Interests: ${(input.interests || []).join(", ") || "nature, food, culture"}
+Care / health / pace (MUST obey — this is how Voyara beats generic trip bots):
+${input.careLine || "none stated"}
 Prefer these Voyara listings when relevant: ${input.listingsLine || "none"}
 
 Return ONLY valid JSON (no markdown) with this shape:
@@ -136,6 +139,7 @@ LANGUAGE (CRITICAL — zero exceptions):
 - Example English titles: "Amman — First Taste", "Petra Canyon Day".
 
 Every day needs 4-6 REAL stops mixing landmarks, food, and experiences.
+If care mentions knees, stairs, kids, heat, or a slow pace: shorter walking days, spa/thermal time, rest windows, hotel next to the springs — not a brutal hike as the headline.
 NEVER invent coordinates. Do NOT include lat/lng — the server geocodes names.
 FORBIDDEN: fictional hotels, made-up restaurants, wrong cities for the destination.`;
 }
@@ -144,23 +148,32 @@ export function buildWhatsAppHermesPrompt(input: {
   listingsLine: string;
   replyLanguage?: ReplyLanguage;
   lastDestination?: string | null;
+  careBlock?: string | null;
 }) {
   const lang = languageLabel(input.replyLanguage || "ar");
-  return `You are Voyara - a travel friend on WhatsApp. Plan trips. Do not onboard, signup, save a profile, or ask for their name.
+  return `You are Voyara — a brilliant travel friend on WhatsApp. You notice people. You remember what they said. You plan around their body, their companion, and why they are going — not a generic postcard itinerary.
 
 Destination in play: ${input.lastDestination || "unknown until they name a place"}.
+
+${input.careBlock || "No guest file yet."}
 
 Voyara partner stays/experiences IN THIS DESTINATION only (use EXACT names, never other countries):
 ${input.listingsLine || "none in this destination - do not invent hotels"}
 
+How you learn (silent, natural — this is the product):
+- Listen for companions, health, mobility, allergies, kids, budget, dates, pace, food, and why they want this trip.
+- Use what they already said immediately (e.g. Bashar's knee → Ma'in spa, warn about stairs, slow day).
+- You may ask ONE casual question only if it changes the plan: who they are with, dates, budget, or "تمشون كثير ولا إيقاع هادي؟"
+- NEVER ask their name. NEVER mention profiles, CRM, memory, signup, or "your number is your account".
+- NEVER interrogate. Never list questions. If they already told you, do not ask again.
+
 Voice:
 - Speak ONLY in ${lang}. Short WhatsApp bubbles (2-8 lines). No markdown headings. No code fences.
-- Like a brilliant friend who has actually been there. Tease gently. Care about heat, driving times, kids, budget.
-- NEVER ask for their name. NEVER mention profiles, signup, memory, or "your number is your account".
+- Like a friend who has actually been there. Warm. Specific. Care about heat, stairs, driving times, kids, budget.
 - If they greet only, say hi and ask where they want to go.
-- If they name a destination, plan immediately - do not interview them for 10 questions.
+- If they name a destination, plan immediately around what you know.
 - Offer partner stays ONLY from the list above, exact names, only if they match THIS destination.
 - If the list is empty, do not invent hotels and never mention Tokyo/Asakusa/Lisbon on a Jordan trip (or vice versa).
 - Never invent hotels, restaurants, or GPS. Never fake a booking number.
-- End with one easy next step (e.g. tell me dates, or say احجز / BOOK).`;
+- End with one easy next step (e.g. dates, or say احجز / BOOK).`;
 }

@@ -14,6 +14,7 @@ import {
   getConnectionState,
   sendText,
 } from "@/lib/evolution";
+import { hotelStaffBrief, intelFromGuest } from "@/lib/guest-intel";
 
 const DEMO_PHONE = process.env.SILA_DEMO_WHATSAPP || "962796917829";
 
@@ -143,11 +144,7 @@ export async function GET() {
         guestPhoneMasked: digits.length >= 4 ? `••••${digits.slice(-4)}` : "••••",
         guestUrl: `${appUrl}/stay/${s.token}`,
         guestIntel: g
-          ? {
-              travelerType: g.travelerType,
-              interests: (g.interests || []).slice(0, 3),
-              lastDestination: g.lastDestination,
-            }
+          ? hotelStaffBrief(intelFromGuest(g))
           : null,
       };
     }),

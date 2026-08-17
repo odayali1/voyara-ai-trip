@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import { db } from "@/lib/db";
 import { normalizeWhatsAppNumber } from "@/lib/evolution";
+import { hotelStaffBrief, hydrateThinGuestIntel, intelFromGuest } from "@/lib/guest-intel";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +48,39 @@ export async function GET() {
   });
   const byPhone = Object.fromEntries(guests.map((g) => [g.phone, g]));
 
+  const tripPhones = phones;
+  const tripRows =
+    tripPhones.length > 0
+      ? await db.trip.findMany({
+          where: { guestPhone: { in: tripPhones } },
+          select: { id: true, guestPhone: true },
+        })
+      : [];
+  const chat =
+    tripRows.length > 0
+      ? await db.chatMessage.findMany({
+          where: { tripId: { in: tripRows.map((t) => t.id) } },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+          select: { tripId: true, role: true, content: true },
+        })
+      : [];
+  const phoneByTrip = Object.fromEntries(tripRows.map((t) => [t.id, t.guestPhone]));
+  for (const g of guests) {
+    const convo = chat
+      .filter((m) => phoneByTrip[m.tripId] === g.phone)
+      .slice()
+      .reverse()
+      .map((m) => `${m.role === "user" ? "Traveler" : "Voyara"}: ${m.content}`)
+      .join("\n");
+    const intel = await hydrateThinGuestIntel(g.id, convo);
+    if (intel) byPhone[g.phone] = { ...g, ...intel };
+  }
+
   return NextResponse.json({
     arrivals: stays.map((s) => {
       const g = s.guestPhone ? byPhone[s.guestPhone] : null;
+      const brief = g ? hotelStaffBrief(intelFromGuest(g)) : null;
       return {
         stayId: s.id,
         firstName: firstName(s.guestName || g?.displayName),
@@ -60,8 +91,14 @@ export async function GET() {
         checkOut: s.checkOut,
         source: s.source,
         tripCity: s.tripLabel,
-        vibe: (g?.interests || []).slice(0, 3),
-        travelerType: g?.travelerType || null,
+        vibe: brief?.interests || [],
+        travelerType: brief?.travelerType || null,
+        travelingWith: brief?.travelingWith || null,
+        careNeeds: brief?.careNeeds || [],
+        healthNotes: brief?.healthNotes || null,
+        pace: brief?.pace || null,
+        preferences: brief?.preferences || [],
+        staffNote: brief?.staffNote || null,
         openRequests: s.requests.map((r) => r.title),
       };
     }),
