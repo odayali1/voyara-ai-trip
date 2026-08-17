@@ -417,7 +417,7 @@ export function PlannerStudio({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
+    <div className="flex h-[calc(100dvh-7.25rem)] flex-col gap-3">
       {/* Full-width toolbar — NOT inside the 12-col grid */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">

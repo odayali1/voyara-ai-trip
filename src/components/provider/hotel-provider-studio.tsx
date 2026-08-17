@@ -25,6 +25,10 @@ import {
   Loader2,
   Hotel,
   Wand2,
+  LayoutDashboard,
+  MessageCircle,
+  HeartPulse,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +42,8 @@ import { ProviderTour } from "@/components/provider/provider-tour";
 import { GuestPulsePanel } from "@/components/provider/guest-pulse-panel";
 import { ConciergeJourneyPanel } from "@/components/provider/concierge-journey-panel";
 import { JourneyMap } from "@/components/journey-map";
+import { SiteHeader } from "@/components/site-header";
+import { Eyebrow, KpiCard, LiveDot, Surface } from "@/components/ui/surface";
 
 type Listing = {
   id: string;
@@ -296,9 +302,9 @@ export function HotelProviderStudio() {
   const kpis = analytics?.kpis;
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7f1e8_0%,#eef6f4_45%,#f8fafc_100%)]">
-      {/* Hotel hero */}
-      <section className="relative overflow-hidden border-b border-[var(--line)]">
+    <main className="dash-canvas min-h-screen">
+      <SiteHeader role="PROVIDER" sticky />
+      <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1800&q=80"
@@ -308,26 +314,25 @@ export function HotelProviderStudio() {
             unoptimized
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0f243a]/92 via-[#0f243a]/70 to-[#0f9c8c]/35" />
+          <div className="hero-veil absolute inset-0" />
         </div>
-        <div className="relative z-10 px-5 pb-8 pt-20 md:px-10">
+        <div className="relative z-10 mx-auto max-w-[1400px] px-5 py-10 md:px-10 md:py-14">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/75">
-                <Hotel className="h-3.5 w-3.5" /> Hotel provider studio
+                <Hotel className="h-3.5 w-3.5" /> Hotel operations desk
               </p>
-              <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-white md:text-5xl">
+              <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-white md:text-6xl">
                 {profile?.businessName || "Your boutique hotel"}
               </h1>
-              <p className="mt-2 max-w-xl text-sm text-white/85">
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/85 md:text-base">
                 {profile?.city
                   ? `${profile.city}${profile.country ? `, ${profile.country}` : ""}`
                   : "Hotel operations desk"}
                 {" · "}
-                Inventory, AI import, SILA guest journey, and Silent Guest recovery — what hotels
-                show stakeholders.
+                Rooms, AI import, SILA guest journey, and silent-guest recovery.
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {profile && (
                   <Badge
                     variant={profile.status === "APPROVED" ? "success" : "warn"}
@@ -336,6 +341,7 @@ export function HotelProviderStudio() {
                     {profile.status}
                   </Badge>
                 )}
+                <LiveDot label={`${arrivals.length} arriving`} />
                 <Badge variant="demo" className="normal-case">
                   AI rate-sheet import
                 </Badge>
@@ -343,12 +349,12 @@ export function HotelProviderStudio() {
             </div>
             <div className="flex gap-2">
               <Button asChild variant="hero" size="sm">
-                <Link href="/planner">Open traveler view</Link>
+                <Link href="/planner">Traveler view</Link>
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                className="bg-white/15 text-white hover:bg-white/25"
+                className="border-white/20 bg-white/15 text-white hover:bg-white/25"
                 onClick={() => setTab("ai")}
               >
                 <Wand2 className="h-4 w-4" />
@@ -359,31 +365,27 @@ export function HotelProviderStudio() {
         </div>
       </section>
 
-      <div className="px-4 py-6 md:px-10">
+      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-10">
         <ProviderTour onJump={(t) => setTab(t as Tab)} />
 
-        <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-[var(--line)] bg-white/80 p-1.5 shadow-sm">
+        <div className="segmented sticky top-[4.2rem] z-20 mb-6">
           {(
             [
-              ["overview", "Overview"],
-              ["concierge", "SILA Journey"],
-              ["rooms", "Rooms"],
-              ["ai", "AI Import"],
-              ["pulse", "Silent Guest"],
-              ["profile", "Hotel profile"],
+              ["overview", "Overview", LayoutDashboard],
+              ["concierge", "SILA Journey", MessageCircle],
+              ["rooms", "Rooms", BedDouble],
+              ["ai", "AI Import", Wand2],
+              ["pulse", "Silent Guest", HeartPulse],
+              ["profile", "Hotel profile", Building2],
             ] as const
-          ).map(([id, label]) => (
+          ).map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={cn(
-                "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                tab === id
-                  ? "bg-[var(--ink)] text-white shadow"
-                  : "text-[var(--muted)] hover:bg-black/5 hover:text-[var(--ink)]"
-              )}
+              className={cn("segmented-btn inline-flex items-center gap-2", tab === id && "is-active")}
             >
+              <Icon className="h-3.5 w-3.5" />
               {label}
             </button>
           ))}
@@ -392,11 +394,9 @@ export function HotelProviderStudio() {
         {tab === "overview" && (
           <div className="mb-6 space-y-4">
             <JourneyMap compact highlight={3} />
-            <div className="rounded-2xl border border-[var(--accent)]/20 bg-white/90 p-4 text-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-                Explain to stakeholders · Provider
-              </p>
-              <p className="mt-1 text-[var(--muted)]">
+            <div className="surface-card p-5 text-sm">
+              <Eyebrow>Show owners · Hotel</Eyebrow>
+              <p className="mt-2 text-[var(--muted)]">
                 You are the <strong className="text-[var(--ink)]">hotel</strong>. Travelers confirm
                 stays on <strong className="text-[var(--ink)]">Hotels</strong>. Those guests appear
                 in <strong className="text-[var(--ink)]">SILA Journey</strong>. You send WhatsApp
@@ -413,58 +413,23 @@ export function HotelProviderStudio() {
         {tab === "overview" && (
           <div className="space-y-6">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  label: "Room views",
-                  value: kpis?.views ?? 167,
-                  icon: Eye,
-                  hint: "Last 14 days",
-                },
-                {
-                  label: "Saves",
-                  value: kpis?.saves ?? 38,
-                  icon: Heart,
-                  hint: "Travelers hearted you",
-                },
-                {
-                  label: "Inquiries",
-                  value: kpis?.inquiries ?? 20,
-                  icon: MessageSquare,
-                  hint: `${kpis?.conversion ?? 12}% convert`,
-                },
-                {
-                  label: "Avg nightly",
-                  value: formatCurrency(kpis?.avgPrice || 145),
-                  icon: DollarSign,
-                  hint: `${hotelListings.length || kpis?.active || 0} live rooms`,
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-3xl border border-[var(--line)] bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,36,58,0.05)]"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-                      {item.label}
-                    </p>
-                    <item.icon className="h-4 w-4 text-[var(--accent)]" />
-                  </div>
-                  <p className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--ink)]">
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">{item.hint}</p>
-                </div>
-              ))}
+              <KpiCard label="Room views" value={kpis?.views ?? 167} hint="Last 14 days" icon={<Eye className="h-4 w-4" />} />
+              <KpiCard label="Saves" value={kpis?.saves ?? 38} hint="Travelers hearted you" icon={<Heart className="h-4 w-4" />} />
+              <KpiCard label="Inquiries" value={kpis?.inquiries ?? 20} hint={`${kpis?.conversion ?? 12}% convert`} icon={<MessageSquare className="h-4 w-4" />} />
+              <KpiCard
+                label="Avg nightly"
+                value={formatCurrency(kpis?.avgPrice || 145)}
+                hint={`${hotelListings.length || kpis?.active || 0} live rooms`}
+                icon={<DollarSign className="h-4 w-4" />}
+              />
             </div>
 
-            <section className="rounded-3xl border border-[var(--line)] bg-white/90 p-5 shadow-sm">
+            <Surface>
               <div className="mb-3 flex items-end justify-between gap-2">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-                    Arriving guests · limited intel
-                  </p>
-                  <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
-                    What the hotel needs — not the full chat
+                  <Eyebrow>Arriving guests · limited intel</Eyebrow>
+                  <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+                    What the hotel needs - not the full chat
                   </h2>
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => setTab("concierge")}>
@@ -502,10 +467,10 @@ export function HotelProviderStudio() {
                   </article>
                 ))}
               </div>
-            </section>
+            </Surface>
 
             <div className="grid gap-6 xl:grid-cols-5">
-              <section className="rounded-3xl border border-[var(--line)] bg-white/90 p-5 shadow-sm xl:col-span-3">
+              <section className="surface-card p-5 xl:col-span-3">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
                     Demand pulse

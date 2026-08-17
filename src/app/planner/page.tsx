@@ -15,8 +15,8 @@ export default async function PlannerPage({
 
   return (
     <main className="app-shell min-h-screen">
-      <div className="relative px-3 pb-3 pt-16 md:px-5 md:pt-20">
-        <SiteHeader role={user?.role} />
+      <SiteHeader role={user?.role} sticky />
+      <div className="relative px-3 pb-3 pt-6 md:px-5">
         <PlannerStudio
           isAuthenticated={Boolean(session)}
           destinationHint={destinationHint}

@@ -51,7 +51,7 @@ export function JourneyMap({
   return (
     <section
       className={cn(
-        "rounded-3xl border border-[var(--line)] bg-white/90 p-4 shadow-sm md:p-5",
+        "rounded-3xl border border-[var(--line)] bg-white/90 p-4 shadow-[0_16px_40px_rgba(12,28,46,0.06)] md:p-5",
         className
       )}
     >
@@ -66,7 +66,7 @@ export function JourneyMap({
               compact ? "text-xl" : "text-2xl md:text-3xl"
             )}
           >
-            One product loop — traveler, hotel, guest, admin
+            One product loop - traveler, hotel, guest, admin
           </h2>
         </div>
         <Link

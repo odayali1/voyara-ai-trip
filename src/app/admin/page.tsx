@@ -27,6 +27,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CHART, tooltipStyle } from "@/lib/chart-theme";
 import { toast } from "sonner";
+import { DashShell } from "@/components/dash/dash-shell";
+import { Eyebrow, KpiCard, LiveDot, Segmented, Surface } from "@/components/ui/surface";
+import {
+  Building2,
+  Compass,
+  Hotel,
+  MessageCircle,
+  Percent,
+  Sparkles,
+  Users,
+  Utensils,
+} from "lucide-react";
 
 type Analytics = {
   sampleMode?: boolean;
@@ -105,6 +117,7 @@ type ProviderRow = {
 export default function AdminPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
+  const [view, setView] = useState<"live" | "guests" | "intel" | "hotels">("live");
   const [waGuests, setWaGuests] = useState<{
     count: number;
     guests: Array<{
@@ -162,8 +175,11 @@ export default function AdminPage() {
 
   if (!analytics) {
     return (
-      <main className="app-shell flex min-h-screen items-center justify-center text-[var(--muted)]">
-        Loading command center…
+      <main className="dash-canvas flex min-h-screen items-center justify-center text-[var(--muted)]">
+        <div className="flex items-center gap-3 rounded-full border border-[var(--line)] bg-white/80 px-5 py-3 shadow-sm">
+          <span className="live-dot" />
+          Opening command center
+        </div>
       </main>
     );
   }
@@ -177,189 +193,181 @@ export default function AdminPage() {
     { name: "Listings", value: analytics.funnel.listingViews },
   ];
 
-  const kpis: Array<[string, string | number, string]> = [
-    ["Travelers", analytics.kpis.travelers, "Active accounts"],
-    ["Providers", analytics.kpis.providers, `${analytics.kpis.providersApproved} approved`],
-    ["Trips planned", analytics.kpis.trips, `${analytics.kpis.avgDays} avg days`],
-    ["Conversion", `${analytics.kpis.conversionRate}%`, "Land → trip"],
-    ["Active listings", analytics.kpis.activeListings, `${analytics.kpis.totalListings} total`],
-    ["Pending review", analytics.kpis.providersPending, "Need approval"],
-    ["Foodie intent", analytics.kpis.foodieSeekers, "Intent signals"],
-    ["Adventure intent", analytics.kpis.adventureSeekers, "Intent signals"],
-  ];
-
   return (
-    <main className="app-shell min-h-screen px-4 py-8 md:px-8 md:py-10">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
-            Admin intelligence
-          </p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-[var(--ink)] md:text-4xl">
-            Voyara command center
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Platform brain for stakeholders: who lands, who chats, who books intent, and which hotels
-            supply rooms. Approve providers so they appear in traveler trip plans.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {analytics.sampleMode && <Badge variant="demo">Includes sample polish</Badge>}
+    <DashShell
+      role="ADMIN"
+      eyebrow="Owner command center"
+      title="See demand, guests, and hotels in one glance"
+      subtitle="Live stays, WhatsApp memory, conversion, and hotel approvals - the board view for Voyara."
+      actions={
+        <>
+          <LiveDot />
+          {analytics.sampleMode && <Badge variant="demo">Sample polish</Badge>}
           <Button asChild variant="secondary">
+            <Link href="/how-it-works">Walkthrough</Link>
+          </Button>
+          <Button asChild>
             <Link href="/planner">Open product</Link>
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard label="Travelers" value={analytics.kpis.travelers} hint="Active accounts" icon={<Users className="h-4 w-4" />} />
+        <KpiCard label="Hotels" value={analytics.kpis.providers} hint={`${analytics.kpis.providersApproved} approved`} icon={<Building2 className="h-4 w-4" />} />
+        <KpiCard label="Trips planned" value={analytics.kpis.trips} hint={`${analytics.kpis.avgDays} avg days`} icon={<Compass className="h-4 w-4" />} />
+        <KpiCard label="Conversion" value={`${analytics.kpis.conversionRate}%`} hint="Land to trip" icon={<Percent className="h-4 w-4" />} />
+        <KpiCard label="Live listings" value={analytics.kpis.activeListings} hint={`${analytics.kpis.totalListings} total`} icon={<Hotel className="h-4 w-4" />} />
+        <KpiCard label="Pending review" value={analytics.kpis.providersPending} hint="Need approval" icon={<Sparkles className="h-4 w-4" />} />
+        <KpiCard label="Foodie intent" value={analytics.kpis.foodieSeekers} hint="WhatsApp + web" icon={<Utensils className="h-4 w-4" />} />
+        <KpiCard label="WhatsApp guests" value={waGuests?.count ?? 0} hint="Profiles from chat" icon={<MessageCircle className="h-4 w-4" />} />
       </div>
 
-      <div className="mb-6 rounded-2xl border border-[var(--accent)]/20 bg-[linear-gradient(135deg,#fffdf8,#f3faf8)] p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-          Live operations · bookings that hit hotel + WhatsApp
-        </p>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          {analytics.liveOps?.staysBooked ?? 0} stays booked ·{" "}
-          {analytics.liveOps?.openRequests ?? 0} open guest requests. This updates when a traveler
-          says احجز / BOOK in chat or WhatsApp.
-        </p>
-        <div className="mt-3 space-y-2">
-          {(analytics.liveOps?.stays || []).length === 0 && (
-            <p className="text-xs text-[var(--muted)]">
-              No live stays yet. Traveler: plan a trip then say “احجز”. Or WhatsApp the Voyara
-              number a destination.
-            </p>
-          )}
-          {(analytics.liveOps?.stays || []).map((s) => (
-            <div
-              key={s.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2 text-sm"
-            >
+      <div className="mt-8">
+        <Segmented
+          value={view}
+          onChange={setView}
+          items={[
+            { id: "live", label: "Live ops", count: analytics.liveOps?.staysBooked },
+            { id: "guests", label: "WhatsApp CRM", count: waGuests?.count },
+            { id: "intel", label: "Intelligence" },
+            { id: "hotels", label: "Hotel desk", count: providers.length },
+          ]}
+        />
+      </div>
+
+      {view === "live" && (
+        <div className="mt-6 grid gap-6 xl:grid-cols-5">
+          <Surface className="xl:col-span-3">
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <span className="font-semibold text-[var(--ink)]">{s.guestName}</span>
-                <span className="text-[var(--muted)]">
-                  {" "}
-                  · {s.hotel} · {s.room}
-                </span>
+                <Eyebrow>Live operations</Eyebrow>
+                <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+                  Bookings that hit hotel + WhatsApp
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  {analytics.liveOps?.staysBooked ?? 0} stays booked · {analytics.liveOps?.openRequests ?? 0} open guest requests
+                </p>
               </div>
-              <div className="flex gap-2 text-[11px] text-[var(--muted)]">
-                <Badge variant="outline">{s.stage}</Badge>
-                <Badge variant="demo">{s.source || s.channel}</Badge>
-                {s.openRequests > 0 && <Badge variant="warn">{s.openRequests} requests</Badge>}
-              </div>
+              <LiveDot label="Streaming" />
             </div>
-          ))}
+            <div className="space-y-2">
+              {(analytics.liveOps?.stays || []).length === 0 && (
+                <p className="rounded-2xl bg-black/[0.03] px-4 py-6 text-sm text-[var(--muted)]">
+                  No live stays yet. Plan a trip, then BOOK - or WhatsApp Voyara a destination.
+                </p>
+              )}
+              {(analytics.liveOps?.stays || []).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-white/80 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[linear-gradient(145deg,#12b8a4,#ff8a4c)] text-sm font-bold text-white">
+                      {s.guestName.slice(0, 1)}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-[var(--ink)]">{s.guestName}</p>
+                      <p className="text-xs text-[var(--muted)]">
+                        {s.hotel} · {s.room}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">{s.stage.replaceAll("_", " ")}</Badge>
+                    <Badge variant="demo">{s.source || s.channel}</Badge>
+                    {s.openRequests > 0 && <Badge variant="warn">{s.openRequests} requests</Badge>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Surface>
+          <Surface className="xl:col-span-2">
+            <Eyebrow>Show owners</Eyebrow>
+            <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+              One loop, three desks
+            </h2>
+            <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[var(--muted)]">
+              <li className="rounded-2xl bg-black/[0.03] p-3">
+                <strong className="text-[var(--ink)]">Demand.</strong> Travelers plan - charts show land, chat, trip.
+              </li>
+              <li className="rounded-2xl bg-black/[0.03] p-3">
+                <strong className="text-[var(--ink)]">Supply.</strong> Approve hotels so rooms appear in plans.
+              </li>
+              <li className="rounded-2xl bg-black/[0.03] p-3">
+                <strong className="text-[var(--ink)]">Stay ops.</strong> SILA WhatsApp on the hotel login.
+              </li>
+            </ul>
+            <Button asChild className="mt-4" variant="secondary">
+              <Link href="/provider">Open hotel desk</Link>
+            </Button>
+          </Surface>
         </div>
-      </div>
+      )}
 
-      <section className="mb-6 rounded-2xl border border-[var(--line)] bg-white/95 p-4">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-              WhatsApp travelers · full CRM
-            </p>
-            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
+      {view === "guests" && (
+        <Surface className="mt-6">
+          <div className="mb-5">
+            <Eyebrow>WhatsApp travelers · full CRM</Eyebrow>
+            <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
               {waGuests?.count ?? 0} profiles built from chat
             </h2>
-            <p className="text-xs text-[var(--muted)]">
-              First WhatsApp message = signup. Name, interests, memory, trips — admin sees everything.
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              First message is signup. Admin sees name, interests, memory, and recent chat.
             </p>
           </div>
-        </div>
-        <div className="space-y-3">
-          {(waGuests?.guests || []).length === 0 && (
-            <p className="text-sm text-[var(--muted)]">
-              No WhatsApp travelers yet. Have someone text the connected Voyara number.
-            </p>
-          )}
-          {(waGuests?.guests || []).map((g) => (
-            <article
-              key={g.id}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--panel-solid)] p-4 text-sm"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="font-semibold text-[var(--ink)]">
-                    {g.displayName || "Name not learned yet"}
-                  </span>
-                  <span className="text-[var(--muted)]"> · {g.phone}</span>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {(waGuests?.guests || []).length === 0 && (
+              <p className="text-sm text-[var(--muted)]">No WhatsApp travelers yet. Text the connected Voyara number.</p>
+            )}
+            {(waGuests?.guests || []).map((g) => (
+              <article key={g.id} className="rounded-3xl border border-[var(--line)] bg-white/80 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--ink)] text-sm font-bold text-white">
+                      {(g.displayName || "?").slice(0, 1)}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-[var(--ink)]">{g.displayName || "Name still learning"}</p>
+                      <p className="text-xs text-[var(--muted)]">{g.phone}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    <Badge variant="outline">{g.language}</Badge>
+                    {g.travelerType && <Badge variant="demo">{g.travelerType}</Badge>}
+                    <Badge variant="outline">{g.messageCount} msgs</Badge>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="outline">{g.language}</Badge>
-                  {g.travelerType && <Badge variant="demo">{g.travelerType}</Badge>}
-                  {g.budgetBand && <Badge variant="outline">{g.budgetBand}</Badge>}
-                  <Badge variant="outline">{g.messageCount} msgs</Badge>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                {(g.interests || []).join(" · ") || "Interests learning…"}
-                {g.companions ? ` · ${g.companions}` : ""}
-                {g.homeCity ? ` · from ${g.homeCity}` : ""}
-              </p>
-              {g.memorySummary && (
-                <p className="mt-2 text-xs leading-relaxed text-[var(--ink)]">{g.memorySummary}</p>
-              )}
-              <p className="mt-2 text-[11px] text-[var(--muted)]">
-                Last trip: {g.lastTripTitle || "—"} ({g.lastDestination || "—"}) ·{" "}
-                {g.trips?.[0]?.bookedAt ? "booked" : "planning"}
-              </p>
-              {(g.recentChat || []).length > 0 && (
-                <div className="mt-3 space-y-1 rounded-xl bg-black/[0.03] p-3 text-[11px] leading-relaxed">
-                  {g.recentChat.map((m, i) => (
-                    <p key={`${g.id}-c-${i}`}>
-                      <span className="font-semibold">
-                        {m.role === "user" ? "Guest" : "Voyara"}:
-                      </span>{" "}
-                      {m.content}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <div className="mb-6 rounded-2xl border border-[var(--line)] bg-white/90 p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
-          Explain to stakeholders · Admin
-        </p>
-        <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-[var(--muted)] md:grid-cols-3">
-          <li>
-            <strong className="text-[var(--ink)]">Demand:</strong> travelers plan trips — charts
-            show land → chat → trip intent.
-          </li>
-          <li>
-            <strong className="text-[var(--ink)]">Supply:</strong> approve hotels so rooms appear in
-            listings + AI plans.
-          </li>
-          <li>
-            <strong className="text-[var(--ink)]">Stay ops:</strong> SILA WhatsApp lives on Provider
-            login — see{" "}
-            <a href="/how-it-works" className="font-semibold text-[var(--accent)]">
-              How it works A→Z
-            </a>
-            .
-          </li>
-        </ul>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map(([label, value, hint]) => (
-          <div
-            key={label}
-            className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-4 shadow-[0_10px_30px_rgba(15,36,58,0.04)]"
-          >
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-              {label}
-            </div>
-            <div className="mt-1 font-[family-name:var(--font-display)] text-3xl text-[var(--ink)]">
-              {value}
-            </div>
-            <div className="mt-1 text-xs text-[var(--muted)]">{hint}</div>
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                  {(g.interests || []).join(" · ") || "Interests learning"}
+                  {g.companions ? ` · ${g.companions}` : ""}
+                  {g.homeCity ? ` · from ${g.homeCity}` : ""}
+                </p>
+                {g.memorySummary && (
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]">{g.memorySummary}</p>
+                )}
+                <p className="mt-3 text-[11px] text-[var(--muted)]">
+                  Last trip: {g.lastTripTitle || "-"} ({g.lastDestination || "-"}) · {g.trips?.[0]?.bookedAt ? "booked" : "planning"}
+                </p>
+                {(g.recentChat || []).length > 0 && (
+                  <div className="mt-3 space-y-1 rounded-2xl bg-[#f6f3ec] p-3 text-[11px] leading-relaxed">
+                    {g.recentChat.map((m, i) => (
+                      <p key={`${g.id}-c-${i}`}>
+                        <span className="font-semibold">{m.role === "user" ? "Guest" : "Voyara"}:</span> {m.content}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </article>
+            ))}
           </div>
-        ))}
-      </div>
+        </Surface>
+      )}
 
+      {view === "intel" && (
+      <>
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 xl:col-span-2">
+        <section className="surface-card p-5 xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--ink)]">Behavior over time</h2>
             <Badge variant="outline">14 days</Badge>
@@ -408,7 +416,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Traveler type mix</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -434,7 +442,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Conversion funnel</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -449,7 +457,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Top destinations</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -464,7 +472,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Intent radar</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -485,7 +493,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">User growth</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -502,7 +510,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Provider supply stack</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -523,7 +531,7 @@ export default function AdminPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Listings by city</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -538,7 +546,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Budget intent</h2>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -555,7 +563,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+        <section className="surface-card p-5">
           <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">Interest signals</h2>
           <div className="space-y-2">
             {analytics.topInterests.map((item) => (
@@ -571,7 +579,7 @@ export default function AdminPage() {
         </section>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+      <section className="mt-6 surface-card p-5">
         <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">All behavior event counts</h2>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -585,15 +593,18 @@ export default function AdminPage() {
           </ResponsiveContainer>
         </div>
       </section>
-
-      <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
+      </>
+      )}
+      {view === "hotels" && (
+      <section className="mt-6 surface-card p-5 md:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-              Provider approvals
+            <Eyebrow>Marketplace</Eyebrow>
+            <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+              Hotel approvals
             </h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Approve a hotel → their rooms can surface in Voyara trip plans and listings.
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Approve a hotel and their rooms can appear in Voyara trip plans and listings.
             </p>
           </div>
           <Badge variant="outline">{providers.length} total</Badge>
@@ -602,11 +613,11 @@ export default function AdminPage() {
           {providers.map((p) => (
             <div
               key={p.id}
-              className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-white/70 p-4 md:flex-row md:items-center md:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border border-[var(--line)] bg-white/80 p-4 md:flex-row md:items-center md:justify-between"
             >
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium text-[var(--ink)]">{p.businessName}</h3>
+                  <h3 className="font-semibold text-[var(--ink)]">{p.businessName}</h3>
                   <Badge variant={p.status === "APPROVED" ? "success" : "warn"}>{p.status}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-[var(--muted)]">
@@ -631,6 +642,7 @@ export default function AdminPage() {
           )}
         </div>
       </section>
-    </main>
+      )}
+    </DashShell>
   );
 }

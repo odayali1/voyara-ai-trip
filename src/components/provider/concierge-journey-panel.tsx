@@ -185,7 +185,7 @@ export function ConciergeJourneyPanel() {
 
   return (
     <div className="space-y-6">
-      <section className="overflow-hidden rounded-3xl border border-[var(--accent)]/25 bg-[linear-gradient(120deg,#0f243a,#16324f_40%,#0f9c8c)] p-6 text-white shadow-lg">
+      <section className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(120deg,#0b1c2e,#16324f_42%,#0e8f81)] p-6 text-white shadow-[0_24px_50px_rgba(12,28,46,0.18)]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dede0]">
           SILA Concierge
         </p>

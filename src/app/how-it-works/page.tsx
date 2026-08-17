@@ -9,8 +9,8 @@ export default async function HowItWorksPage() {
 
   return (
     <main className="app-shell min-h-screen">
-      <div className="relative px-6 pb-20 pt-24 md:px-10">
-        <SiteHeader role={user?.role} />
+      <SiteHeader role={user?.role} sticky />
+      <div className="mx-auto max-w-6xl px-6 pb-20 pt-8 md:px-10">
 
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
           Stakeholder walkthrough
@@ -28,7 +28,7 @@ export default async function HowItWorksPage() {
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-2">
-          <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-6">
+          <section className="surface-card p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
               Screen A · Traveler
             </p>
@@ -98,7 +98,7 @@ export default async function HowItWorksPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-6">
+          <section className="surface-card p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
               What “reply 2” means
             </p>
@@ -124,7 +124,7 @@ export default async function HowItWorksPage() {
             </p>
           </section>
 
-          <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-6">
+          <section className="surface-card p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
               Screen C · Admin
             </p>

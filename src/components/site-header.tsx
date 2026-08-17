@@ -3,44 +3,49 @@
 import Link from "next/link";
 import { useSession, signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { VoyaraMark } from "@/components/brand/logo";
+import { cn } from "@/lib/utils";
 
 export function SiteHeader({
   role,
   light = false,
+  sticky = false,
 }: {
   role?: string | null;
   light?: boolean;
+  sticky?: boolean;
 }) {
   const { data: session } = useSession();
-  const text = light ? "text-white" : "text-[var(--ink)]";
-  const mutedHover = light ? "hover:bg-white/10 text-white" : undefined;
+  const overlay = light && !sticky;
+  const mutedHover = overlay ? "hover:bg-white/10 text-white" : undefined;
 
   return (
-    <header className="absolute inset-x-0 top-0 z-40 flex items-center justify-between px-6 py-5 md:px-10">
-      <Link
-        href="/"
-        className={`font-[family-name:var(--font-display)] text-2xl tracking-tight ${text}`}
-      >
-        Voyara
-      </Link>
-      <nav className="flex items-center gap-2 md:gap-3">
-        <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
+    <header
+      className={cn(
+        "z-40 flex items-center justify-between px-5 py-3.5 md:px-8",
+        overlay ? "absolute inset-x-0 top-0 site-nav is-overlay" : "site-nav",
+        sticky && "sticky top-0"
+      )}
+    >
+      <VoyaraMark light={overlay} />
+      <nav className="flex items-center gap-1 md:gap-2">
+        <Button asChild variant="ghost" size="sm" className={mutedHover}>
           <Link href="/how-it-works">How it works</Link>
         </Button>
-        <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
+        <Button asChild variant="ghost" size="sm" className={cn("hidden sm:inline-flex", mutedHover)}>
           <Link href="/planner">Planner</Link>
         </Button>
-        <Button asChild variant={light ? "ghost" : "ghost"} size="sm" className={mutedHover}>
+        <Button asChild variant="ghost" size="sm" className={cn("hidden sm:inline-flex", mutedHover)}>
           <Link href="/listings">Hotels</Link>
         </Button>
         {session ? (
           <>
-            <Button asChild variant="ghost" size="sm" className={mutedHover}>
+            <Button asChild variant="ghost" size="sm" className={cn("hidden md:inline-flex", mutedHover)}>
               <Link href="/trips">Trips</Link>
             </Button>
             {(role === "PROVIDER" || role === "ADMIN") && (
               <Button asChild variant="ghost" size="sm" className={mutedHover}>
-                <Link href="/provider">Provider</Link>
+                <Link href="/provider">Hotel</Link>
               </Button>
             )}
             {role === "ADMIN" && (
@@ -49,7 +54,7 @@ export function SiteHeader({
               </Button>
             )}
             <Button
-              variant={light ? "hero" : "secondary"}
+              variant={overlay ? "hero" : "secondary"}
               size="sm"
               onClick={() => signOut()}
             >
@@ -61,7 +66,7 @@ export function SiteHeader({
             <Button asChild variant="ghost" size="sm" className={mutedHover}>
               <Link href="/login">Log in</Link>
             </Button>
-            <Button asChild size="sm" variant={light ? "hero" : "default"} className="hidden sm:inline-flex">
+            <Button asChild size="sm" variant={overlay ? "hero" : "default"} className="hidden sm:inline-flex">
               <Link href="/signup">Get started</Link>
             </Button>
           </>

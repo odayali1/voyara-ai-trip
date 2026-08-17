@@ -28,7 +28,7 @@ export function LandingPrompt() {
     <div className="mt-8 w-full max-w-2xl space-y-4">
       <form
         onSubmit={onSubmit}
-        className="flex flex-col gap-2 rounded-2xl border border-white/25 bg-white/15 p-2 shadow-2xl backdrop-blur-md sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 rounded-[1.6rem] border border-white/25 bg-white/15 p-2 shadow-2xl backdrop-blur-md sm:flex-row sm:items-center"
       >
         <input
           value={value}

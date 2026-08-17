@@ -18,14 +18,16 @@ export default async function ListingsPage() {
 
   return (
     <main className="app-shell min-h-screen">
-      <div className="relative px-6 pb-16 pt-24 md:px-10">
-        <SiteHeader role={user?.role} />
-        <h1 className="font-[family-name:var(--font-display)] text-4xl text-[var(--sand)]">
+      <SiteHeader role={user?.role} sticky />
+      <div className="mx-auto max-w-[1400px] px-6 pb-16 pt-8 md:px-10">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
+          Marketplace
+        </p>
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-[var(--ink)] md:text-5xl">
           Hotels & partners
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
-          Step 2 of the Voyara loop: traveler picks a hotel and confirms a stay. That creates a
-          live SILA guest for the hotel (WhatsApp + provider dashboard).
+          Pick a stay. Confirm. The hotel SILA desk and admin live ops update immediately.
         </p>
 
         <div className="mt-6">
@@ -36,7 +38,7 @@ export default async function ListingsPage() {
           {listings.map((listing) => (
             <article
               key={listing.id}
-              className="flex flex-col rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5"
+              className="surface-card flex flex-col p-5 transition hover:-translate-y-1 hover:shadow-[0_24px_50px_rgba(12,28,46,0.1)]"
             >
               <ListingViewTracker
                 listingId={listing.id}

@@ -34,8 +34,8 @@ export default function SignupPage() {
   return (
     <main className="app-shell flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-8">
-        <Link href="/" className="font-[family-name:var(--font-display)] text-3xl text-[var(--sand)]">
-          Voyara
+        <Link href="/" className="inline-block">
+          <span className="font-[family-name:var(--font-display)] text-3xl text-[var(--ink)]">Voyara</span>
         </Link>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Create your traveler account and set preferences.

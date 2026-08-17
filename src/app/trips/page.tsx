@@ -16,8 +16,8 @@ export default async function TripsPage() {
 
   return (
     <main className="app-shell min-h-screen">
-      <div className="relative px-6 pb-16 pt-24 md:px-10">
-        <SiteHeader role={user?.role} />
+      <SiteHeader role={user?.role} sticky />
+      <div className="mx-auto max-w-[1400px] px-6 pb-16 pt-8 md:px-10">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-4xl text-[var(--sand)]">
@@ -35,7 +35,7 @@ export default async function TripsPage() {
             <Link
               key={trip.id}
               href={`/trips/${trip.id}`}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5 transition hover:border-[var(--accent)]/40"
+              className="surface-card p-5 transition hover:-translate-y-0.5 hover:border-[var(--accent)]/40"
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--sand)]">
