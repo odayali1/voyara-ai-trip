@@ -77,7 +77,7 @@ function errorMessage(err: unknown): string {
     return "DeepSeek API key is missing or invalid on the server. Check DEEPSEEK_API_KEY in Coolify.";
   }
   if (anyErr.statusCode === 429) {
-    return "AI rate limit hit ù wait a moment and try again.";
+    return "AI rate limit hit - wait a moment and try again.";
   }
   return (
     anyErr.data?.error?.message ||
@@ -280,9 +280,9 @@ export async function POST(req: Request) {
             }
 
             let object = await generatePlanJson(false);
-            // DeepSeek sometimes leaks Chinese into structured JSON ù reject & regenerate
+            // DeepSeek sometimes leaks Chinese into structured JSON - reject & regenerate
             if (planHasWrongLanguage(object, replyLanguage)) {
-              console.warn("itinerary CJK language leak ù regenerating");
+              console.warn("itinerary CJK language leak - regenerating");
               object = await generatePlanJson(replyLanguage !== "ar");
               if (planHasWrongLanguage(object, replyLanguage) && replyLanguage !== "zh") {
                 object = await generatePlanJson(true);
@@ -345,7 +345,7 @@ export async function POST(req: Request) {
             console.error("itinerary parse failed", err);
             send({
               type: "text",
-              text: "\n\n(?? ????? ????? ??? ????? ?????? ????? ????? ?????? ù map pins need another try.)",
+              text: "\n\n(Could not pin the map this time - try sending the destination again.)",
             });
           }
         }
@@ -398,7 +398,7 @@ export async function POST(req: Request) {
         send({ type: "error", message: msg });
         send({
           type: "text",
-          text: `${msg}\n\n??? ??? ù ???? ??? ????.`,
+          text: `${msg}\n\nPlease try again in a moment.`,
         });
         send({ type: "done" });
       } finally {
