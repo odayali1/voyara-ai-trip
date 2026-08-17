@@ -36,6 +36,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { ProviderTour } from "@/components/provider/provider-tour";
 import { GuestPulsePanel } from "@/components/provider/guest-pulse-panel";
+import { ConciergeJourneyPanel } from "@/components/provider/concierge-journey-panel";
 
 type Listing = {
   id: string;
@@ -90,7 +91,7 @@ type RoomDraft = {
   category?: string;
 };
 
-type Tab = "overview" | "rooms" | "ai" | "pulse" | "profile";
+type Tab = "overview" | "rooms" | "ai" | "concierge" | "pulse" | "profile";
 
 const ROOM_IMAGES = [
   "https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=800&q=80",
@@ -342,6 +343,7 @@ export function HotelProviderStudio() {
           {(
             [
               ["overview", "Overview"],
+              ["concierge", "SILA Journey"],
               ["rooms", "Rooms"],
               ["ai", "AI Import"],
               ["pulse", "Silent Guest"],
@@ -451,24 +453,23 @@ export function HotelProviderStudio() {
                 </div>
               </section>
 
-              <section className="rounded-3xl border border-[var(--accent)]/25 bg-[linear-gradient(160deg,#fffaf3,#e8f7f4)] p-5 shadow-sm xl:col-span-2">
-                <div className="mb-3 inline-flex rounded-2xl bg-[var(--accent)]/10 p-3">
-                  <Sparkles className="h-5 w-5 text-[var(--accent)]" />
+              <section className="rounded-3xl border border-[#3b0764]/20 bg-[linear-gradient(160deg,#1e1b4b,#6d28d9)] p-5 text-white shadow-sm xl:col-span-2">
+                <div className="mb-3 inline-flex rounded-2xl bg-white/15 p-3">
+                  <Sparkles className="h-5 w-5" />
                 </div>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-                  AI rate-sheet magic
+                <h2 className="font-[family-name:var(--font-display)] text-2xl">
+                  SILA guest journey
                 </h2>
-                  <p className="mt-2 text-sm text-[var(--muted)]">
-                  Upload PDF, Word, or Excel. AI extracts rooms/offers into Voyara cards — review
-                  once, publish. No manual form filling.
+                <p className="mt-2 text-sm text-violet-50/90">
+                  Stakeholder deck, live: pre-arrival WhatsApp-style chat, upsells, mid-stay care,
+                  late checkout, post-stay rating + discount code.
                 </p>
-                <Button className="mt-5" onClick={() => setTab("ai")}>
-                  <Wand2 className="h-4 w-4" />
-                  Try AI import
+                <Button
+                  className="mt-5 bg-white text-[#1e1b4b] hover:bg-violet-100"
+                  onClick={() => setTab("concierge")}
+                >
+                  Open Concierge Journey
                 </Button>
-                <p className="mt-3 text-xs text-[var(--muted)]">
-                  Demo file ready: hotel-rooms-sample.txt
-                </p>
               </section>
             </div>
 
@@ -701,6 +702,8 @@ export function HotelProviderStudio() {
             </section>
           </div>
         )}
+
+        {tab === "concierge" && <ConciergeJourneyPanel />}
 
         {tab === "pulse" && <GuestPulsePanel />}
 

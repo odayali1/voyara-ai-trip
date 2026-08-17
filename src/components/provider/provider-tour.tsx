@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button";
 
 const STEPS = [
   {
-    title: "1 · Hotel profile",
-    body: "Save your hotel name & city so Voyara can recommend you in trip plans.",
+    title: "1 · Hotel profile + rooms",
+    body: "Save hotel profile, then AI-import PDF/Word/Excel rooms into Voyara.",
     icon: BedDouble,
   },
   {
-    title: "2 · AI import rooms",
-    body: "Upload PDF, Word, or Excel rate sheets — AI fills room cards. No manual typing.",
+    title: "2 · SILA guest journey",
+    body: "Run the full stay: pre-arrival → check-in offers → in-stay pulse → extras → late checkout → rating.",
     icon: Upload,
   },
   {
     title: "3 · Silent Guest Shield",
-    body: "Send a mid-stay pulse before checkout. Catch issues privately — avoid surprise bad reviews.",
+    body: "Catch quiet unhappy guests mid-stay and recover before the public review.",
     icon: ShieldAlert,
   },
 ];
@@ -83,21 +83,21 @@ export function ProviderTour({ onJump }: { onJump?: (tab: string) => void }) {
         <Button
           size="sm"
           onClick={() => {
-            onJump?.("ai");
+            onJump?.("concierge");
             dismiss();
           }}
         >
-          Try AI import example
+          Open SILA Journey
         </Button>
         <Button
           size="sm"
           variant="secondary"
           onClick={() => {
-            onJump?.("pulse");
+            onJump?.("ai");
             dismiss();
           }}
         >
-          Open Silent Guest Shield
+          Try AI import
         </Button>
         <Button size="sm" variant="ghost" onClick={dismiss}>
           Got it

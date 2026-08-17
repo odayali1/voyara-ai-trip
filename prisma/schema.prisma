@@ -146,6 +146,8 @@ model ProviderProfile {
   updatedAt    DateTime         @updatedAt
   listings     ProviderListing[]
   guestPulses  GuestStayPulse[]
+  conciergeStays ConciergeStay[]
+  conciergeOffers ConciergeOffer[]
 }
 
 /** Mid-stay pulse to catch silent unhappy guests before bad public reviews. */
@@ -171,6 +173,78 @@ model GuestStayPulse {
 
   @@index([providerId, status])
   @@index([token])
+}
+
+/** SILA-style hotel guest journey stay. */
+model ConciergeStay {
+  id           String            @id @default(cuid())
+  providerId   String
+  provider     ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  token        String            @unique @default(cuid())
+  guestName    String
+  guestPhone   String?
+  roomName     String
+  checkIn      DateTime
+  checkOut     DateTime
+  /** PRE_ARRIVAL | CHECKIN | UPSELL | IN_STAY | EXTRAS | PRE_DEPARTURE | POST_STAY | DONE */
+  stage        String            @default("PRE_ARRIVAL")
+  language     String            @default("ar")
+  rating       Int?
+  discountCode String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  messages     ConciergeMessage[]
+  requests     ConciergeRequest[]
+
+  @@index([providerId, stage])
+  @@index([token])
+}
+
+model ConciergeOffer {
+  id          String          @id @default(cuid())
+  providerId  String
+  provider    ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  /** PRE_ARRIVAL | CHECKIN | UPSELL | IN_STAY | EXTRAS | PRE_DEPARTURE | POST_STAY */
+  stage       String
+  title       String
+  titleAr     String?
+  description String?
+  priceFrom   Float?
+  currency    String          @default("USD")
+  emoji       String?
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([providerId, stage])
+}
+
+model ConciergeMessage {
+  id        String        @id @default(cuid())
+  stayId    String
+  stay      ConciergeStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  role      String        // hotel | guest | system
+  stage     String?
+  body      String
+  choices   String[]      @default([])
+  createdAt DateTime      @default(now())
+
+  @@index([stayId, createdAt])
+}
+
+model ConciergeRequest {
+  id        String        @id @default(cuid())
+  stayId    String
+  stay      ConciergeStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  offerId   String?
+  title     String
+  stage     String?
+  status    String        @default("REQUESTED") // REQUESTED | CONFIRMED | DECLINED | DONE
+  note      String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([stayId])
 }
 
 model ProviderListing {
