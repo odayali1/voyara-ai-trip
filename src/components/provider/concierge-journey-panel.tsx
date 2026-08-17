@@ -8,6 +8,9 @@ import {
   Sparkles,
   ChevronRight,
   CheckCircle2,
+  QrCode,
+  Send,
+  Wifi,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +22,7 @@ type Stage = { id: string; labelEn: string; labelAr: string; order: number };
 type Stay = {
   id: string;
   guestName: string;
+  guestPhone?: string | null;
   roomName: string;
   stage: string;
   language: string;
@@ -37,6 +41,14 @@ type Offer = {
   emoji?: string | null;
   priceFrom?: number | null;
 };
+type WaStatus = {
+  configured: boolean;
+  state?: string;
+  instance?: string;
+  error?: string | null;
+  demoGuestPhone?: string;
+  hint?: string;
+};
 
 export function ConciergeJourneyPanel() {
   const [loading, setLoading] = useState(true);
@@ -47,8 +59,16 @@ export function ConciergeJourneyPanel() {
   const [busy, setBusy] = useState(false);
   const [newGuest, setNewGuest] = useState("سارة خالد");
   const [newRoom, setNewRoom] = useState("Family Suite Twin");
+  const [wa, setWa] = useState<WaStatus | null>(null);
+  const [qrBase64, setQrBase64] = useState<string | null>(null);
 
   const selected = stays.find((s) => s.id === selectedId) || stays[0] || null;
+
+  async function loadWa() {
+    const res = await fetch("/api/providers/whatsapp");
+    if (!res.ok) return;
+    setWa(await res.json());
+  }
 
   async function load() {
     const res = await fetch("/api/providers/concierge");
@@ -63,6 +83,7 @@ export function ConciergeJourneyPanel() {
 
   useEffect(() => {
     void load();
+    void loadWa();
   }, []);
 
   async function act(action: string, extra?: Record<string, unknown>) {
@@ -90,11 +111,43 @@ export function ConciergeJourneyPanel() {
         /* ignore */
       }
       toast.success("Guest journey link ready");
+    } else if (data.whatsapp?.sent?.ok) {
+      toast.success("Stage sent on WhatsApp");
     } else {
       toast.success("Journey updated");
     }
     await load();
     if (data.stay?.id) setSelectedId(data.stay.id);
+  }
+
+  async function waAct(action: string, extra?: Record<string, unknown>) {
+    setBusy(true);
+    const res = await fetch("/api/providers/whatsapp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, stayId: selected?.id, ...extra }),
+    });
+    setBusy(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.error || "WhatsApp action failed");
+      return data;
+    }
+    if (action === "qr") {
+      setQrBase64(data.base64 || null);
+      if (!data.base64) toast.error(data.error || "No QR yet — create instance first");
+      else toast.success("Scan this QR with WhatsApp Linked Devices");
+    } else if (action === "create_instance") {
+      toast.success(data.ok ? "Instance created" : data.error || "Create failed");
+      await loadWa();
+    } else if (action === "setup_webhook") {
+      toast.success(data.ok ? `Webhook set: ${data.webhookUrl}` : data.error || "Webhook failed");
+    } else if (action === "send_stage" || action === "test_ping") {
+      toast.success(data.sent?.ok ? "WhatsApp message sent" : data.sent?.error || "Send failed");
+      await load();
+    }
+    await loadWa();
+    return data;
   }
 
   if (loading) {
@@ -106,6 +159,7 @@ export function ConciergeJourneyPanel() {
   }
 
   const stageIndex = stages.findIndex((s) => s.id === selected?.stage);
+  const waOpen = wa?.state === "open";
 
   return (
     <div className="space-y-6">
@@ -117,10 +171,72 @@ export function ConciergeJourneyPanel() {
           The smarter way to stay
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-violet-50/90">
-          Full guest journey from the stakeholder deck: قبل الوصول → تسجيل الدخول → عروض → أثناء
-          الإقامة → خدمات → قبل المغادرة → تقييم بعد المغادرة. Hotel pushes, guest taps, revenue +
-          recovery happen in-chat.
+          Full guest journey from the stakeholder deck — hotel dashboard + guest WhatsApp (or web
+          chat backup).
         </p>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Wifi className={cn("h-4 w-4", waOpen ? "text-emerald-600" : "text-amber-600")} />
+              <h3 className="font-semibold text-[var(--ink)]">WhatsApp (Evolution)</h3>
+              <Badge variant={waOpen ? "success" : "warn"}>
+                {!wa?.configured ? "not configured" : wa.state || "unknown"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Instance: {wa?.instance || "—"} · Demo guest:{" "}
+              {wa?.demoGuestPhone || "962796917829"}
+              {wa?.hint ? ` · ${wa.hint}` : ""}
+              {wa?.error ? ` · ${wa.error}` : ""}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => void loadWa()}>
+              Refresh status
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void waAct("create_instance")}
+            >
+              Create instance
+            </Button>
+            <Button size="sm" disabled={busy} onClick={() => void waAct("qr")}>
+              <QrCode className="h-3.5 w-3.5" />
+              Show QR
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => void waAct("setup_webhook")}
+            >
+              Set webhook
+            </Button>
+            <Button size="sm" disabled={busy || !waOpen} onClick={() => void waAct("test_ping")}>
+              <Send className="h-3.5 w-3.5" />
+              Test ping
+            </Button>
+          </div>
+        </div>
+        {qrBase64 && (
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl border border-[var(--line)] bg-[#f8f5ff] p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrBase64.startsWith("data:") ? qrBase64 : `data:image/png;base64,${qrBase64}`}
+              alt="WhatsApp QR"
+              className="h-56 w-56 rounded-xl bg-white p-2"
+            />
+            <p className="text-center text-xs text-[var(--muted)]">
+              WhatsApp → Linked devices → Link a device → scan. Tell me when status becomes{" "}
+              <strong>open</strong>.
+            </p>
+          </div>
+        )}
       </section>
 
       <div className="grid gap-4 xl:grid-cols-12">
@@ -164,6 +280,7 @@ export function ConciergeJourneyPanel() {
                   guestName: newGuest,
                   roomName: newRoom,
                   language: "ar",
+                  guestPhone: wa?.demoGuestPhone || "962796917829",
                 })
               }
             >
@@ -184,7 +301,7 @@ export function ConciergeJourneyPanel() {
                     {selected.guestName}
                   </h3>
                   <p className="text-sm text-[var(--muted)]">
-                    {selected.roomName} ·{" "}
+                    {selected.roomName} · {selected.guestPhone || "no phone"} ·{" "}
                     {new Date(selected.checkIn).toLocaleDateString()} →{" "}
                     {new Date(selected.checkOut).toLocaleDateString()}
                   </p>
@@ -199,13 +316,21 @@ export function ConciergeJourneyPanel() {
                     }}
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    Copy guest link
+                    Copy web link
                   </Button>
-                  <Button size="sm" asChild>
+                  <Button size="sm" variant="secondary" asChild>
                     <a href={selected.guestUrl} target="_blank" rel="noreferrer">
                       <MessageCircle className="h-3.5 w-3.5" />
-                      Open guest chat
+                      Open web chat
                     </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy || !waOpen}
+                    onClick={() => void waAct("send_stage")}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    Send stage on WhatsApp
                   </Button>
                   <Button
                     size="sm"
@@ -296,7 +421,7 @@ export function ConciergeJourneyPanel() {
                     <div className="mt-2 space-y-2">
                       {selected.requests.length === 0 && (
                         <p className="text-xs text-[var(--muted)]">
-                          Requests appear when the guest taps an offer in chat.
+                          Requests appear when the guest replies on WhatsApp or web chat.
                         </p>
                       )}
                       {selected.requests.map((r) => (
