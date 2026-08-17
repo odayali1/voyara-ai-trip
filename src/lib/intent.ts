@@ -12,7 +12,9 @@ export type BehaviorEventType =
   | "listing_saved"
   | "itinerary_edited"
   | "mock_price_viewed"
-  | "page_landed";
+  | "page_landed"
+  | "stay_booked"
+  | "whatsapp_inbound";
 
 export async function trackEvent(
   eventType: BehaviorEventType,

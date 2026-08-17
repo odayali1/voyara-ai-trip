@@ -74,6 +74,21 @@ type Analytics = {
   userGrowth: Array<{ date: string; travelers: number; providers: number }>;
   budgetMix: Array<{ name: string; value: number }>;
   roleMix: Array<{ name: string; value: number }>;
+  liveOps?: {
+    staysBooked: number;
+    openRequests: number;
+    stays: Array<{
+      id: string;
+      guestName: string;
+      hotel: string;
+      room: string;
+      stage: string;
+      source: string | null;
+      channel: string;
+      createdAt: string;
+      openRequests: number;
+    }>;
+  };
 };
 
 type ProviderRow = {
@@ -174,6 +189,44 @@ export default function AdminPage() {
       </div>
 
       <div className="mb-6 rounded-2xl border border-[var(--accent)]/20 bg-[linear-gradient(135deg,#fffdf8,#f3faf8)] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+          Live operations · bookings that hit hotel + WhatsApp
+        </p>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          {analytics.liveOps?.staysBooked ?? 0} stays booked ·{" "}
+          {analytics.liveOps?.openRequests ?? 0} open guest requests. This updates when a traveler
+          says احجز / BOOK in chat or WhatsApp.
+        </p>
+        <div className="mt-3 space-y-2">
+          {(analytics.liveOps?.stays || []).length === 0 && (
+            <p className="text-xs text-[var(--muted)]">
+              No live stays yet. Traveler: plan a trip then say “احجز”. Or WhatsApp the Voyara
+              number a destination.
+            </p>
+          )}
+          {(analytics.liveOps?.stays || []).map((s) => (
+            <div
+              key={s.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2 text-sm"
+            >
+              <div>
+                <span className="font-semibold text-[var(--ink)]">{s.guestName}</span>
+                <span className="text-[var(--muted)]">
+                  {" "}
+                  · {s.hotel} · {s.room}
+                </span>
+              </div>
+              <div className="flex gap-2 text-[11px] text-[var(--muted)]">
+                <Badge variant="outline">{s.stage}</Badge>
+                <Badge variant="demo">{s.source || s.channel}</Badge>
+                {s.openRequests > 0 && <Badge variant="warn">{s.openRequests} requests</Badge>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-[var(--line)] bg-white/90 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
           Explain to stakeholders · Admin
         </p>

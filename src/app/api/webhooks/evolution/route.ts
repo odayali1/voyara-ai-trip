@@ -5,42 +5,40 @@ import {
   normalizeWhatsAppNumber,
   sendText,
 } from "@/lib/evolution";
+import { handleTravelerWhatsApp } from "@/lib/whatsapp-traveler";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const DEMO_PHONE = process.env.SILA_DEMO_WHATSAPP || "962796917829";
 
-async function findStayForNumber(number: string) {
-  const stays = await db.conciergeStay.findMany({
-    where: { stage: { not: "DONE" } },
-    orderBy: { updatedAt: "desc" },
-    take: 50,
-  });
-
-  const exact = stays.find((s) => normalizeWhatsAppNumber(s.guestPhone) === number);
-  if (exact) return exact;
-
-  const fuzzy = stays.find((s) => {
-    const p = normalizeWhatsAppNumber(s.guestPhone);
-    if (!p) return false;
-    return p.endsWith(number.slice(-9)) || number.endsWith(p.slice(-9));
-  });
-  if (fuzzy) return fuzzy;
-
-  // Demo fallback: guest WhatsApp is the linked demo phone
-  const demo = normalizeWhatsAppNumber(DEMO_PHONE);
-  if (demo && (number === demo || number.endsWith(demo.slice(-9)) || demo.endsWith(number.slice(-9)))) {
-    return stays[0] || null;
-  }
-
-  // Last resort for live demos: single active stay
-  if (stays.length === 1) return stays[0];
-  return null;
+function isStayChoice(text: string) {
+  const t = text.trim();
+  if (/^[1-5]$/.test(t)) return true;
+  return /لاحقا|تمام|مو الآن|لا شكرا|all set|maybe later|not now|no thanks|i'm all set|بدي مساعدة|need help/i.test(
+    t
+  );
 }
 
-/**
- * Evolution API → Voyara inbound WhatsApp webhook.
- */
+async function findStayForNumber(number: string) {
+  const stays = await db.conciergeStay.findMany({
+    where: {
+      stage: { not: "DONE" },
+      guestPhone: { not: null },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 40,
+  });
+  return (
+    stays.find((s) => normalizeWhatsAppNumber(s.guestPhone) === number) ||
+    stays.find((s) => {
+      const p = normalizeWhatsAppNumber(s.guestPhone);
+      return Boolean(p && (p.endsWith(number.slice(-9)) || number.endsWith(p.slice(-9))));
+    }) ||
+    null
+  );
+}
+
 export async function POST(req: Request) {
   let payload: unknown;
   try {
@@ -55,7 +53,6 @@ export async function POST(req: Request) {
       ""
   ).toLowerCase();
 
-  // Accept messages.upsert / MESSAGES_UPSERT / empty (some proxies strip event)
   const isMessageEvent =
     !event ||
     event.includes("messages.upsert") ||
@@ -71,104 +68,91 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: true, reason: fromMe ? "fromMe" : "no-text" });
   }
 
-  const stay = number ? await findStayForNumber(number) : await findStayForNumber(DEMO_PHONE);
-  if (!stay) {
-    // Still acknowledge so guest isn't left hanging in demos
-    const to = number || DEMO_PHONE;
-    await sendText(
-      to,
-      "SILA هنا 👋 ابدأ الرحلة من لوحة الفندق (SILA Journey) ثم أعد إرسال رقم الخيار."
-    );
-    return NextResponse.json({ ok: true, unmatched: number });
-  }
+  const phone = number || DEMO_PHONE;
+  const stay = await findStayForNumber(phone);
 
-  const replyTo = number || normalizeWhatsAppNumber(stay.guestPhone) || DEMO_PHONE;
-
-  await db.conciergeMessage.create({
-    data: {
-      stayId: stay.id,
-      role: "guest",
-      stage: stay.stage,
-      body: text,
-      choices: [],
-    },
-  });
-
-  const skip =
-    /لاحقا|تمام(?!\s)|مو الآن|لا شكرا|all set|maybe later|not now|no thanks|i'm all set|^تمام$/i.test(
-      text
-    );
-  const ratingMatch = text.trim().match(/^[1-5]$/);
-
-  let reply = "";
-
-  if (stay.stage === "POST_STAY" && ratingMatch) {
-    await db.conciergeStay.update({
-      where: { id: stay.id },
-      data: { rating: Number(text.trim()), stage: "DONE" },
-    });
-    reply =
-      stay.language === "ar"
-        ? `شكراً لتقييمك ${text.trim()}/5 💜 كود خصمك: ${stay.discountCode || "SILA-BACK10"}`
-        : `Thanks for rating us ${text.trim()}/5 💜 Your code: ${stay.discountCode || "SILA-BACK10"}`;
-  } else if (!skip) {
-    const needHelp = /مساعدة|need help|help|بدي مساعدة/i.test(text);
-    let title = text.trim();
-    const recentHotel = await db.conciergeMessage.findMany({
-      where: { stayId: stay.id, role: "hotel" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
-    const hotelForChoices = recentHotel.find((m) => m.choices.length > 0);
-    const n = Number(title);
-    const choices = hotelForChoices?.choices || [];
-    if (choices.length && n >= 1 && n <= choices.length) {
-      title = choices[n - 1];
-    }
-
-    await db.conciergeRequest.create({
+  // Numbered SILA replies only when this phone already has a live stay
+  if (stay && isStayChoice(text)) {
+    await db.conciergeMessage.create({
       data: {
         stayId: stay.id,
-        title,
+        role: "guest",
         stage: stay.stage,
-        status: "REQUESTED",
-        note: needHelp ? "WhatsApp help signal" : "WhatsApp reply",
+        body: text,
+        choices: [],
       },
     });
 
-    reply =
-      stay.language === "ar"
-        ? needHelp
-          ? "وصلتنا ملاحظتك — فريق الفندق بيتواصل معك فوراً 🙏"
-          : `تم استلام طلبك: ${title}\nرح نأكد لك التفاصيل قريباً ✅`
-        : needHelp
-          ? "Got it — the hotel team will help you right away."
-          : `Request received: ${title}. We'll confirm shortly ✅`;
-  } else {
-    reply =
-      stay.language === "ar"
-        ? "حاضر! إذا احتجت أي شي، نحنا موجودين 🌿"
-        : "Perfect — ping us anytime you need something 🌿";
+    const skip =
+      /لاحقا|تمام(?!\s)|مو الآن|لا شكرا|all set|maybe later|not now|no thanks|i'm all set|^تمام$/i.test(
+        text
+      );
+    const ratingMatch = text.trim().match(/^[1-5]$/);
+    let reply = "";
+
+    if (stay.stage === "POST_STAY" && ratingMatch) {
+      await db.conciergeStay.update({
+        where: { id: stay.id },
+        data: { rating: Number(text.trim()), stage: "DONE" },
+      });
+      reply =
+        stay.language === "ar"
+          ? `شكراً لتقييمك ${text.trim()}/5 💜 كود خصمك: ${stay.discountCode || "SILA-BACK10"}`
+          : `Thanks for rating us ${text.trim()}/5 💜 Your code: ${stay.discountCode || "SILA-BACK10"}`;
+    } else if (!skip) {
+      const needHelp = /مساعدة|need help|help|بدي مساعدة/i.test(text);
+      let title = text.trim();
+      const recentHotel = await db.conciergeMessage.findMany({
+        where: { stayId: stay.id, role: "hotel" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      });
+      const hotelForChoices = recentHotel.find((m) => m.choices.length > 0);
+      const n = Number(title);
+      const choices = hotelForChoices?.choices || [];
+      if (choices.length && n >= 1 && n <= choices.length) {
+        title = choices[n - 1];
+      }
+      await db.conciergeRequest.create({
+        data: {
+          stayId: stay.id,
+          title,
+          stage: stay.stage,
+          status: "REQUESTED",
+          note: needHelp ? "WhatsApp help signal" : "WhatsApp reply",
+        },
+      });
+      reply =
+        stay.language === "ar"
+          ? needHelp
+            ? "وصلتنا ملاحظتك — فريق الفندق بيتواصل معك فوراً 🙏"
+            : `تم استلام طلبك: ${title}\nرح نأكد لك التفاصيل قريباً ✅`
+          : needHelp
+            ? "Got it — the hotel team will help you right away."
+            : `Request received: ${title}. We'll confirm shortly ✅`;
+    } else {
+      reply =
+        stay.language === "ar"
+          ? "حاضر! إذا احتجت أي شي، نحنا موجودين 🌿"
+          : "Perfect — ping us anytime you need something 🌿";
+    }
+
+    await db.conciergeMessage.create({
+      data: {
+        stayId: stay.id,
+        role: "hotel",
+        stage: stay.stage,
+        body: reply,
+        choices: [],
+      },
+    });
+    const sent = await sendText(phone, reply);
+    return NextResponse.json({ ok: true, mode: "stay", stayId: stay.id, sent: sent.ok });
   }
 
-  await db.conciergeMessage.create({
-    data: {
-      stayId: stay.id,
-      role: "hotel",
-      stage: stay.stage,
-      body: reply,
-      choices: [],
-    },
-  });
-
-  const sent = await sendText(replyTo, reply);
-  return NextResponse.json({
-    ok: true,
-    stayId: stay.id,
-    replyTo,
-    sent: sent.ok,
-    sendError: sent.error || null,
-  });
+  // Full traveler journey on WhatsApp: plan → maps → book → hotel + admin
+  const traveler = await handleTravelerWhatsApp(phone, text);
+  return NextResponse.json({ mode: "traveler", ...traveler });
 }
 
 export async function GET() {
@@ -176,5 +160,6 @@ export async function GET() {
     ok: true,
     service: "sila-evolution-webhook",
     demoPhone: DEMO_PHONE,
+    modes: ["traveler-planning", "hotel-stay"],
   });
 }

@@ -5,14 +5,14 @@ export const JOURNEY_STEPS = [
   {
     n: "1",
     title: "Traveler plans",
-    body: "Chat with Voyara AI → trip plan on the map → save the trip.",
+    body: "Chat or WhatsApp a destination. Voyara plans with real map pins.",
     href: "/planner",
     role: "Traveler",
   },
   {
     n: "2",
     title: "Pick a hotel",
-    body: "Browse partner hotels/experiences. Confirm stay (demo booking).",
+    body: "Tap Confirm hotel stay or type احجز / BOOK. Hotel + admin dashboards update live.",
     href: "/listings",
     role: "Traveler",
   },

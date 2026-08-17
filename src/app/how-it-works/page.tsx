@@ -19,8 +19,8 @@ export default async function HowItWorksPage() {
           Voyara from A to Z — traveler, hotel, WhatsApp guest, admin
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--muted)]">
-          This is one loop, not separate apps. The traveler plans and confirms a hotel. The hotel
-          runs SILA (WhatsApp stages). The guest replies. Admin sees demand and supply.
+          This is one loop. Plan in chat or WhatsApp. Confirm stay. Hotel runs SILA. Admin sees the
+          live booking. Maps and photos are sent on WhatsApp so the guest never loses the “wow”.
         </p>
 
         <div className="mt-8">
@@ -43,13 +43,14 @@ export default async function HowItWorksPage() {
                 Open <strong className="text-[var(--ink)]">Planner</strong> — ask for a Jordan trip
               </li>
               <li>
-                Open <strong className="text-[var(--ink)]">Hotels</strong> marketplace
+                Tap <strong className="text-[var(--ink)]">Confirm hotel stay</strong> (or type احجز /
+                BOOK in chat)
               </li>
               <li>
-                On a hotel card tap{" "}
-                <strong className="text-[var(--ink)]">Confirm stay (connects to SILA)</strong>
+                Or WhatsApp Voyara a destination — it sends maps, photos, then reply{" "}
+                <strong className="text-[var(--ink)]">احجز</strong>
               </li>
-              <li>Guest chat opens + WhatsApp stage 1 goes to the demo phone</li>
+              <li>Hotel SILA + Admin Live ops update immediately</li>
             </ol>
             <div className="mt-5 flex flex-wrap gap-2">
               <Button asChild size="sm">

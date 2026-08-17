@@ -75,6 +75,7 @@ export async function GET() {
         { eventType: "listing_saved" },
         { eventType: "stop_clicked" },
         { eventType: "map_poi_opened" },
+        { eventType: "stay_booked" },
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -117,7 +118,7 @@ export async function GET() {
       saves += 1;
       byDay[date].saves += 1;
     }
-    if (ev.eventType === "stop_clicked") {
+    if (ev.eventType === "stop_clicked" || ev.eventType === "stay_booked") {
       inquiries += 1;
       byDay[date].inquiries += 1;
     }

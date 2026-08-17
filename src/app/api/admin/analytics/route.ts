@@ -53,6 +53,8 @@ export async function GET() {
     providersRejected,
     recentEvents,
     allUsers,
+    recentStays,
+    bookedCount,
   ] = await Promise.all([
     db.user.count({ where: { role: "TRAVELER" } }),
     db.user.count({ where: { role: "PROVIDER" } }),
@@ -86,6 +88,15 @@ export async function GET() {
       select: { createdAt: true, role: true },
       orderBy: { createdAt: "asc" },
     }),
+    db.conciergeStay.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 12,
+      include: {
+        provider: { select: { businessName: true } },
+        requests: { where: { status: "REQUESTED" }, select: { id: true } },
+      },
+    }),
+    db.behaviorEvent.count({ where: { eventType: "stay_booked" } }),
   ]);
 
   const destinationCounts: Record<string, number> = {};
@@ -325,5 +336,20 @@ export async function GET() {
       { name: "Providers", value: Math.max(providers, 11) },
       { name: "Admins", value: Math.max(admins, 1) },
     ],
+    liveOps: {
+      staysBooked: bookedCount,
+      openRequests: recentStays.reduce((n, s) => n + s.requests.length, 0),
+      stays: recentStays.map((s) => ({
+        id: s.id,
+        guestName: s.guestName,
+        hotel: s.provider.businessName,
+        room: s.roomName,
+        stage: s.stage,
+        source: s.source,
+        channel: s.guestPhone ? "WhatsApp" : "Web",
+        createdAt: s.createdAt,
+        openRequests: s.requests.length,
+      })),
+    },
   });
 }

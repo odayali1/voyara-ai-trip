@@ -291,6 +291,10 @@ model Trip {
   status       TripStatus    @default(DRAFT)
   shareId      String        @unique @default(cuid())
   summary      String?
+  /** WEB | WHATSAPP */
+  channel      String        @default("WEB")
+  guestPhone   String?
+  bookedAt     DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   days         ItineraryDay[]
@@ -298,6 +302,7 @@ model Trip {
 
   @@index([ownerId])
   @@index([shareId])
+  @@index([guestPhone])
 }
 
 model ItineraryDay {

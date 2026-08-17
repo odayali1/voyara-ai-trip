@@ -13,9 +13,22 @@ import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { looksLikePlanRequest, parseItineraryFromText } from "@/lib/parse-itinerary";
 import { trackEvent } from "@/lib/intent";
 import { detectReplyLanguage, planHasWrongLanguage } from "@/lib/language";
+import { fulfillBooking, looksLikeBooking } from "@/lib/fulfill-booking";
 
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) *
+      Math.cos((b.lat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
 
 async function enrichPlan(plan: ItineraryPlan): Promise<ItineraryPlan> {
   const destGeo = await geocodePlace(plan.destination);
@@ -24,19 +37,22 @@ async function enrichPlan(plan: ItineraryPlan): Promise<ItineraryPlan> {
       ...day,
       stops: await Promise.all(
         day.stops.map(async (stop) => {
-          if (
-            stop.lat != null &&
-            stop.lng != null &&
-            Number.isFinite(stop.lat) &&
-            Number.isFinite(stop.lng)
-          ) {
-            return stop;
-          }
           const q = stop.address
             ? `${stop.title}, ${stop.address}, ${plan.destination}`
             : `${stop.title}, ${plan.destination}`;
           const geo = (await geocodePlace(q)) || destGeo;
-          if (!geo) return stop;
+          if (!geo) {
+            return { ...stop, lat: undefined, lng: undefined };
+          }
+          // Drop pins that landed in the wrong country/region vs destination
+          if (destGeo && haversineKm(geo, destGeo) > 450) {
+            return {
+              ...stop,
+              lat: destGeo.lat,
+              lng: destGeo.lng,
+              address: stop.address || destGeo.displayName,
+            };
+          }
           return {
             ...stop,
             lat: geo.lat,
@@ -61,7 +77,7 @@ function errorMessage(err: unknown): string {
     return "DeepSeek API key is missing or invalid on the server. Check DEEPSEEK_API_KEY in Coolify.";
   }
   if (anyErr.statusCode === 429) {
-    return "AI rate limit hit — wait a moment and try again.";
+    return "AI rate limit hit � wait a moment and try again.";
   }
   return (
     anyErr.data?.error?.message ||
@@ -264,9 +280,9 @@ export async function POST(req: Request) {
             }
 
             let object = await generatePlanJson(false);
-            // DeepSeek sometimes leaks Chinese into structured JSON — reject & regenerate
+            // DeepSeek sometimes leaks Chinese into structured JSON � reject & regenerate
             if (planHasWrongLanguage(object, replyLanguage)) {
-              console.warn("itinerary CJK language leak — regenerating");
+              console.warn("itinerary CJK language leak � regenerating");
               object = await generatePlanJson(replyLanguage !== "ar");
               if (planHasWrongLanguage(object, replyLanguage) && replyLanguage !== "zh") {
                 object = await generatePlanJson(true);
@@ -324,11 +340,46 @@ export async function POST(req: Request) {
               },
               session?.user?.id
             );
+            tripDestination = enriched.destination;
           } catch (err) {
             console.error("itinerary parse failed", err);
             send({
               type: "text",
-              text: "\n\n(تم إنشاء النص، لكن خريطة الأيام تحتاج إعادة محاولة — map pins need another try.)",
+              text: "\n\n(?? ????? ????? ??? ????? ?????? ????? ????? ?????? � map pins need another try.)",
+            });
+          }
+        }
+
+        if (
+          looksLikeBooking(lastUser?.content || "") &&
+          !abortSignal.aborted
+        ) {
+          const booked = await fulfillBooking({
+            guestName: user?.name || session?.user.name || "Voyara Traveler",
+            destination: tripDestination !== "TBD" ? tripDestination : lastUser?.content,
+            travelerUserId: session?.user.id || null,
+            tripId: tripId || null,
+            language: replyLanguage === "en" ? "en" : "ar",
+            source: "CHAT",
+          });
+          if (booked.ok) {
+            send({
+              type: "booking",
+              booking: {
+                hotelName: booked.hotelName,
+                room: booked.listing.title,
+                guestUrl: booked.guestUrl,
+                whatsapp: booked.whatsapp,
+              },
+            });
+            send({
+              type: "text",
+              text:
+                "\n\n---\nStay confirmed with partner hotel: " +
+                booked.hotelName +
+                " / " +
+                booked.listing.title +
+                "\nHotel SILA Journey + Admin command center now show this booking.",
             });
           }
         }
@@ -347,7 +398,7 @@ export async function POST(req: Request) {
         send({ type: "error", message: msg });
         send({
           type: "text",
-          text: `${msg}\n\nحدث خطأ — حاول مرة أخرى.`,
+          text: `${msg}\n\n??? ??? � ???? ??? ????.`,
         });
         send({ type: "done" });
       } finally {

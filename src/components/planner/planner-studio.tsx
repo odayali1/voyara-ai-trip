@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Save, Share2, CloudSun, Loader2 } from "lucide-react";
+import { Send, Save, Share2, CloudSun, Loader2, BedDouble } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,7 @@ export function PlannerStudio({
   const [hotels, setHotels] = useState<PriceOffer[]>([]);
   const [weather, setWeather] = useState<WeatherDay[]>([]);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [bookingBusy, setBookingBusy] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "map" | "plan">("chat");
   const autoStarted = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -272,6 +273,7 @@ export function PlannerStudio({
                 plan?: ItineraryPlan;
                 stage?: string;
                 message?: string;
+                booking?: { hotelName?: string; room?: string; guestUrl?: string };
               };
               if (event.type === "status") {
                 if (event.stage === "mapping") setStage("mapping");
@@ -295,6 +297,11 @@ export function PlannerStudio({
                 setPlan(event.plan);
                 setStage("ready");
                 setMobileTab("map");
+              }
+              if (event.type === "booking" && event.booking?.hotelName) {
+                toast.success(
+                  `Stay confirmed: ${event.booking.hotelName}. Provider SILA + Admin updated.`
+                );
               }
             } catch {
               /* ignore keep-alives / partial JSON */
@@ -337,6 +344,34 @@ export function PlannerStudio({
       window.clearTimeout(timeout);
       setLoading(false);
     }
+  }
+
+  async function reserveHotel() {
+    if (!plan) {
+      toast.message("Plan a trip first, then reserve");
+      return;
+    }
+    setBookingBusy(true);
+    const res = await fetch("/api/demo/start-stay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: plan.destination,
+        tripId: activeTripId,
+        guestName: "Voyara Traveler",
+      }),
+    });
+    setBookingBusy(false);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(data.error || "Could not confirm stay");
+      return;
+    }
+    toast.success(
+      data.whatsapp?.sent
+        ? `Hotel confirmed: ${data.stay?.hotelName}. WhatsApp + SILA + Admin updated.`
+        : `Hotel confirmed: ${data.stay?.hotelName}. Open SILA Journey as provider.`
+    );
   }
 
   async function saveTrip() {
@@ -426,6 +461,15 @@ export function PlannerStudio({
               </button>
             ))}
           </div>
+          <Button
+            size="sm"
+            disabled={bookingBusy || !plan}
+            onClick={() => void reserveHotel()}
+            className="hidden sm:inline-flex"
+          >
+            {bookingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <BedDouble className="h-4 w-4" />}
+            Confirm hotel stay
+          </Button>
           <Button size="sm" variant="secondary" onClick={saveTrip} className="hidden sm:inline-flex">
             <Save className="h-4 w-4" />
             Save

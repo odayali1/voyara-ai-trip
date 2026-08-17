@@ -103,7 +103,7 @@ export async function getConnectQr() {
   }>(`/instance/connect/${encodeURIComponent(name)}`);
 }
 
-export async function sendText(number: string, text: string) {
+export async function sendText(number: string, text: string, delay = 800) {
   const to = normalizeWhatsAppNumber(number);
   if (!to) {
     return { ok: false, status: 400, data: null, error: "Invalid WhatsApp number" };
@@ -114,8 +114,49 @@ export async function sendText(number: string, text: string) {
     body: JSON.stringify({
       number: to,
       text,
-      delay: 800,
-      linkPreview: false,
+      delay,
+      linkPreview: true,
+    }),
+  });
+}
+
+export async function sendLocation(
+  number: string,
+  lat: number,
+  lng: number,
+  name?: string,
+  address?: string
+) {
+  const to = normalizeWhatsAppNumber(number);
+  if (!to) {
+    return { ok: false, status: 400, data: null, error: "Invalid WhatsApp number" };
+  }
+  const inst = instanceName();
+  return evoFetch(`/message/sendLocation/${encodeURIComponent(inst)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      number: to,
+      latitude: lat,
+      longitude: lng,
+      name: name || "Voyara pin",
+      address: address || "",
+    }),
+  });
+}
+
+export async function sendImage(number: string, imageUrl: string, caption?: string) {
+  const to = normalizeWhatsAppNumber(number);
+  if (!to) {
+    return { ok: false, status: 400, data: null, error: "Invalid WhatsApp number" };
+  }
+  const inst = instanceName();
+  return evoFetch(`/message/sendMedia/${encodeURIComponent(inst)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      number: to,
+      mediatype: "image",
+      media: imageUrl,
+      caption: caption || "",
     }),
   });
 }
