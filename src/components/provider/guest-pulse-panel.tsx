@@ -107,7 +107,7 @@ export function GuestPulsePanel() {
             <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
               Guests often stay quiet at the front desk, then post a 1★ review later. Voyara sends a
               private mid-stay pulse. Low scores alert your team so you can fix the stay — not the
-              reputation.
+              reputation. Pitch this as review-protection for hotels.
             </p>
           </div>
           <Badge variant="demo" className="normal-case">

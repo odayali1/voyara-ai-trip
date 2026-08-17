@@ -401,7 +401,9 @@ export function PlannerStudio({
           )}
           {!loading && stage === "idle" && (
             <span className="truncate text-xs text-[var(--muted)]">
-              {isAuthenticated ? "Your AI travel fixer" : "Guest · Arabic or English"}
+              {isAuthenticated
+                ? "Traveler planner · tell Voyara your trip"
+                : "Guest · Arabic or English · traveler side"}
             </span>
           )}
         </div>

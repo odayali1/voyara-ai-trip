@@ -300,9 +300,10 @@ export function HotelProviderStudio() {
               <p className="mt-2 max-w-xl text-sm text-white/85">
                 {profile?.city
                   ? `${profile.city}${profile.country ? `, ${profile.country}` : ""}`
-                  : "Rooms · rates · AI catalog import"}
+                  : "Hotel operations desk"}
                 {" · "}
-                Get discovered inside Voyara trip plans.
+                Inventory, AI import, SILA guest journey, and Silent Guest recovery — what hotels
+                show stakeholders.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {profile && (
@@ -365,6 +366,19 @@ export function HotelProviderStudio() {
             </button>
           ))}
         </div>
+
+        {tab === "overview" && (
+          <div className="mb-6 rounded-2xl border border-[var(--accent)]/20 bg-white/90 p-4 text-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+              Explain to stakeholders · Provider
+            </p>
+            <p className="mt-1 text-[var(--muted)]">
+              This login is the <strong className="text-[var(--ink)]">hotel</strong>. Open{" "}
+              <strong className="text-[var(--ink)]">SILA Journey</strong> to run the concierge deck,
+              then open the guest link (or WhatsApp) on a phone so they see both sides live.
+            </p>
+          </div>
+        )}
 
         {tab === "overview" && (
           <div className="space-y-6">
@@ -461,8 +475,9 @@ export function HotelProviderStudio() {
                   SILA guest journey
                 </h2>
                 <p className="mt-2 text-sm text-violet-50/90">
-                  Stakeholder deck, live: pre-arrival WhatsApp-style chat, upsells, mid-stay care,
-                  late checkout, post-stay rating + discount code.
+                  Full Concierge Guest Journey deck: hotel controls stages; guest answers on
+                  WhatsApp or the web chat link. Upsells, mid-stay care, late checkout, rating +
+                  discount code.
                 </p>
                 <Button
                   className="mt-5 bg-white text-[#1e1b4b] hover:bg-violet-100"

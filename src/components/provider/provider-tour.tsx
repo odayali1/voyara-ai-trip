@@ -7,17 +7,17 @@ import { Button } from "@/components/ui/button";
 const STEPS = [
   {
     title: "1 · Hotel profile + rooms",
-    body: "Save hotel profile, then AI-import PDF/Word/Excel rooms into Voyara.",
+    body: "You are the hotel. Save profile, AI-import rooms from PDF/Word/Excel — travelers discover you in trip plans.",
     icon: BedDouble,
   },
   {
     title: "2 · SILA guest journey",
-    body: "Run the full stay: pre-arrival → check-in offers → in-stay pulse → extras → late checkout → rating.",
+    body: "Stakeholder deck live: hotel dashboard + guest chat/WhatsApp through pre-arrival → upsells → rating + discount.",
     icon: Upload,
   },
   {
     title: "3 · Silent Guest Shield",
-    body: "Catch quiet unhappy guests mid-stay and recover before the public review.",
+    body: "Mid-stay pulse catches quiet unhappy guests before a public 1★ review.",
     icon: ShieldAlert,
   },
 ];
@@ -27,7 +27,7 @@ export function ProviderTour({ onJump }: { onJump?: (tab: string) => void }) {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem("voyara_hotel_tour_v1") !== "1") setOpen(true);
+      if (localStorage.getItem("voyara_hotel_tour_v2") !== "1") setOpen(true);
     } catch {
       setOpen(true);
     }
@@ -35,7 +35,7 @@ export function ProviderTour({ onJump }: { onJump?: (tab: string) => void }) {
 
   function dismiss() {
     try {
-      localStorage.setItem("voyara_hotel_tour_v1", "1");
+      localStorage.setItem("voyara_hotel_tour_v2", "1");
     } catch {
       /* ignore */
     }
@@ -63,8 +63,11 @@ export function ProviderTour({ onJump }: { onJump?: (tab: string) => void }) {
             Quick tour
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-            Hotel provider in 3 moves
+            Pitch this as the hotel side
           </h2>
+          <p className="mt-1 max-w-2xl text-xs text-[var(--muted)]">
+            Demo with two screens: this laptop = hotel ops · phone = guest WhatsApp / web chat.
+          </p>
         </div>
         <button type="button" onClick={dismiss} aria-label="Close tour">
           <X className="h-5 w-5 text-[var(--muted)]" />

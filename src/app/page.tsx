@@ -22,8 +22,12 @@ export default async function HomePage() {
             Voyara
           </p>
           <h1 className="max-w-xl text-lg text-white/92 md:text-2xl">
-            Plan like a local fixer — chat, watch places appear on the map, feel the trip before you go.
+            Chat your trip in Arabic or English — places drop on the map before you book.
           </h1>
+          <p className="mt-3 max-w-lg text-sm text-white/70">
+            Traveler side of Voyara. Hotels join separately with rooms, SILA stay messages, and
+            Silent Guest recovery.
+          </p>
           <LandingPrompt />
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild size="lg" variant="hero">

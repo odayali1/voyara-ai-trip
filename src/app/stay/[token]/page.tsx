@@ -84,6 +84,9 @@ export default function GuestStayPage() {
           <p className="text-xs text-white/60">
             {guestName ? `أهلاً ${guestName}` : "Guest journey"} · {stage.replaceAll("_", " ")}
           </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-violet-100/75">
+            You are the guest. Tap a reply — the hotel sees it on their SILA Journey dashboard.
+          </p>
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5">

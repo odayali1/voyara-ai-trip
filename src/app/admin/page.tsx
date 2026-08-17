@@ -160,9 +160,9 @@ export default function AdminPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-[var(--ink)] md:text-4xl">
             Voyara command center
           </h1>
-          <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Users, behavior, intent, and provider supply — live counts with demo-polished series
-            so the board always reads clearly.
+          <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
+            Platform brain for stakeholders: who lands, who chats, who books intent, and which hotels
+            supply rooms. Approve providers so they appear in traveler trip plans.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -171,6 +171,26 @@ export default function AdminPage() {
             <Link href="/planner">Open product</Link>
           </Button>
         </div>
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-[var(--accent)]/20 bg-[linear-gradient(135deg,#fffdf8,#f3faf8)] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+          Explain to stakeholders · Admin
+        </p>
+        <ul className="mt-2 grid gap-2 text-xs leading-relaxed text-[var(--muted)] md:grid-cols-3">
+          <li>
+            <strong className="text-[var(--ink)]">Demand side:</strong> travelers chat with AI and
+            save trips — charts show land → chat → trip intent.
+          </li>
+          <li>
+            <strong className="text-[var(--ink)]">Supply side:</strong> hotels join as providers;
+            approve them here so rooms enter recommendations.
+          </li>
+          <li>
+            <strong className="text-[var(--ink)]">Hotel product:</strong> SILA guest journey + Silent
+            Guest live on the provider login (not this page).
+          </li>
+        </ul>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -420,9 +440,14 @@ export default function AdminPage() {
 
       <section className="mt-6 rounded-2xl border border-[var(--line)] bg-[var(--panel)] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-            Provider approvals
-          </h2>
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+              Provider approvals
+            </h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Approve a hotel → their rooms can surface in Voyara trip plans and listings.
+            </p>
+          </div>
           <Badge variant="outline">{providers.length} total</Badge>
         </div>
         <div className="space-y-3">

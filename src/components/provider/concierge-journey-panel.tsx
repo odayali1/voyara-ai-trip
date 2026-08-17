@@ -171,9 +171,14 @@ export function ConciergeJourneyPanel() {
           The smarter way to stay
         </h2>
         <p className="mt-2 max-w-2xl text-sm text-violet-50/90">
-          Full guest journey from the stakeholder deck — hotel dashboard + guest WhatsApp (or web
-          chat backup).
+          Hotel side of the stakeholder deck. Push each stage, watch guest replies, confirm
+          requests. Guest side = WhatsApp (or web chat link on a phone).
         </p>
+        <div className="mt-4 grid gap-2 text-xs text-violet-100/90 md:grid-cols-3">
+          <div className="rounded-xl bg-white/10 px-3 py-2">1. Select demo guest</div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">2. Send stage / Next stage</div>
+          <div className="rounded-xl bg-white/10 px-3 py-2">3. Guest replies → Confirm</div>
+        </div>
       </section>
 
       <section className="rounded-3xl border border-[var(--line)] bg-white/95 p-4">
