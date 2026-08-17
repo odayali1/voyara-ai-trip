@@ -8,7 +8,7 @@ import {
 } from "@/lib/ai";
 import { getSession } from "@/lib/auth-server";
 import { db } from "@/lib/db";
-import { geocodePlace } from "@/lib/geo";
+import { geocodeInDestination, lookupKnownPlace } from "@/lib/destinations";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { looksLikePlanRequest, parseItineraryFromText } from "@/lib/parse-itinerary";
 import { trackEvent } from "@/lib/intent";
@@ -18,40 +18,17 @@ import { fulfillBooking, looksLikeBooking } from "@/lib/fulfill-booking";
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
 async function enrichPlan(plan: ItineraryPlan): Promise<ItineraryPlan> {
-  const destGeo = await geocodePlace(plan.destination);
   const days = await Promise.all(
     plan.days.map(async (day) => ({
       ...day,
       stops: await Promise.all(
         day.stops.map(async (stop) => {
-          const q = stop.address
-            ? `${stop.title}, ${stop.address}, ${plan.destination}`
-            : `${stop.title}, ${plan.destination}`;
-          const geo = (await geocodePlace(q)) || destGeo;
+          const geo =
+            lookupKnownPlace(stop.title, plan.destination) ||
+            (await geocodeInDestination(stop.title, plan.destination));
           if (!geo) {
             return { ...stop, lat: undefined, lng: undefined };
-          }
-          // Drop pins that landed in the wrong country/region vs destination
-          if (destGeo && haversineKm(geo, destGeo) > 450) {
-            return {
-              ...stop,
-              lat: destGeo.lat,
-              lng: destGeo.lng,
-              address: stop.address || destGeo.displayName,
-            };
           }
           return {
             ...stop,

@@ -2,14 +2,17 @@ export type GeoPoint = { lat: number; lng: number; displayName?: string };
 
 const USER_AGENT = "VoyaraTripPlanner/1.0 (mvp; contact@voyara.app)";
 
-export async function geocodePlace(query: string): Promise<GeoPoint | null> {
+export async function geocodePlace(
+  query: string,
+  opts?: { countrycodes?: string }
+): Promise<GeoPoint | null> {
   try {
     const url = new URL("https://nominatim.openstreetmap.org/search");
     url.searchParams.set("q", query);
     url.searchParams.set("format", "json");
     url.searchParams.set("limit", "1");
-    // Force English / Latin labels instead of local-script names
     url.searchParams.set("accept-language", "en");
+    if (opts?.countrycodes) url.searchParams.set("countrycodes", opts.countrycodes);
 
     const res = await fetch(url.toString(), {
       headers: {

@@ -7,19 +7,25 @@ import {
   buildItineraryJsonPrompt,
   buildProfileExtractPrompt,
 } from "@/lib/ai";
-import { geocodePlace } from "@/lib/geo";
 import { parseItineraryFromText, extractJsonObject } from "@/lib/parse-itinerary";
 import { detectReplyLanguage } from "@/lib/language";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { sendImage, sendLocation, sendText } from "@/lib/evolution";
 import { trackEvent } from "@/lib/intent";
 import { fulfillBooking, looksLikeBooking } from "@/lib/fulfill-booking";
+import {
+  geocodeInDestination,
+  inferDestination,
+  listingFitsDestination,
+  lookupKnownPlace,
+} from "@/lib/destinations";
+import { ensureJordanPartnerHotels } from "@/lib/ensure-jordan-hotels";
 
-function mapsLink(title: string, dest: string, lat?: number | null, lng?: number | null) {
+function mapsLink(title: string, area: string, lat?: number | null, lng?: number | null) {
   if (lat != null && lng != null) {
     return `https://maps.google.com/?q=${lat},${lng}`;
   }
-  return `https://maps.google.com/?q=${encodeURIComponent(`${title}, ${dest}`)}`;
+  return `https://maps.google.com/?q=${encodeURIComponent(`${title}, ${area}`)}`;
 }
 
 const DEST_PHOTOS: Record<string, string> = {
@@ -110,12 +116,13 @@ async function findOrCreateTrip(phone: string, ownerId: string) {
 }
 
 async function enrichStops(plan: ItineraryPlan): Promise<ItineraryPlan> {
-  const destGeo = await geocodePlace(plan.destination);
   const days = [];
   for (const day of plan.days) {
     const stops = [];
     for (const stop of day.stops) {
-      const geo = (await geocodePlace(`${stop.title}, ${plan.destination}`)) || destGeo;
+      const geo =
+        lookupKnownPlace(stop.title, plan.destination) ||
+        (await geocodeInDestination(stop.title, plan.destination));
       stops.push({
         ...stop,
         lat: geo?.lat,
@@ -149,20 +156,20 @@ function formatItineraryWhatsApp(plan: ItineraryPlan, ar: boolean) {
 }
 
 function formatHotelsWhatsApp(
-  listings: Array<{ id: string; title: string; city: string; priceFrom: number | null }>,
-  dest: string,
+  listings: Array<{ id: string; title: string; city: string; country?: string; priceFrom: number | null; lat?: number | null; lng?: number | null }>,
   ar: boolean
 ) {
   if (!listings.length) return null;
   const lines = listings.map((h, i) => {
-    const maps = mapsLink(h.title, dest);
+    const area = `${h.city}${h.country ? `, ${h.country}` : ""}`;
+    const maps = mapsLink(h.title, area, h.lat, h.lng);
     const price = h.priceFrom != null ? ` · from $${h.priceFrom}` : "";
     return `${i + 1}) ${h.title} — ${h.city}${price}\n   ${maps}`;
   });
   const tail = ar
     ? `\nرد برقم الفندق أو اكتب احجز.`
     : `\nReply with the hotel number or BOOK.`;
-  const title = ar ? "فنادق شركاء Voyara" : "Voyara partner hotels";
+  const title = ar ? "فنادق شركاء Voyara في وجهتك" : "Voyara partner hotels in this destination";
   return `${title}\n${lines.join("\n")}${tail}`;
 }
 
@@ -239,6 +246,7 @@ async function extractAndSaveProfile(
 }
 
 export async function handleTravelerWhatsApp(phone: string, text: string) {
+  await ensureJordanPartnerHotels();
   const guest = await findOrCreateGuest(phone);
   const isNew = guest.messageCount <= 1;
   const user = await ensureWhatsAppUser(phone, guest.displayName);
@@ -259,8 +267,20 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     user.id
   );
 
-  const lang = detectReplyLanguage(text) === "en" ? "en" : detectReplyLanguage(text);
+  const detected = detectReplyLanguage(text);
+  const lang =
+    detected === "ar" || detected === "zh"
+      ? detected
+      : /[A-Za-z]{3,}/.test(text)
+        ? "en"
+        : guest.language === "en"
+          ? "en"
+          : "ar";
   const ar = lang === "ar";
+  const destGuess = inferDestination(
+    `${text} ${guest.lastDestination || ""} ${trip.destination}`,
+    guest.lastDestination || trip.destination
+  );
 
   if (isNew) {
     await sendText(
@@ -278,7 +298,7 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     const booked = await fulfillBooking({
       guestName: guest.displayName || user.name,
       guestPhone: phone,
-      destination: guest.lastDestination || trip.destination,
+      destination: destGuess || guest.lastDestination || trip.destination,
       listingId,
       travelerUserId: user.id,
       tripId: trip.id,
@@ -295,15 +315,20 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
   }
 
   if (looksLikeBooking(text) || /^book$/i.test(text.trim()) || text.trim() === "احجز") {
+    const dest = destGuess || guest.lastDestination || trip.destination;
     const booked = await fulfillBooking({
       guestName: guest.displayName || user.name,
       guestPhone: phone,
-      destination: guest.lastDestination || (trip.destination !== "TBD" ? trip.destination : text),
+      destination: dest,
       listingId: guest.lastOfferIds[0] || null,
       travelerUserId: user.id,
       tripId: trip.id,
       language: ar ? "ar" : "en",
       source: "WHATSAPP",
+    });
+    await db.whatsAppGuest.update({
+      where: { id: guest.id },
+      data: { lastOfferIds: [] },
     });
     if (!booked.ok) {
       await sendText(
@@ -319,7 +344,7 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
 
   const listings = await db.providerListing.findMany({
     where: { status: "ACTIVE", provider: { status: "APPROVED" } },
-    take: 16,
+    take: 40,
     select: {
       id: true,
       title: true,
@@ -328,8 +353,13 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
       country: true,
       description: true,
       priceFrom: true,
+      lat: true,
+      lng: true,
     },
   });
+  const localListings = destGuess
+    ? listings.filter((l) => listingFitsDestination(l, destGuess))
+    : [];
 
   const history = await db.chatMessage.findMany({
     where: { tripId: trip.id },
@@ -341,8 +371,8 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     .map((m) => `${m.role === "user" ? "Traveler" : "Voyara"}: ${m.content}`)
     .join("\n");
 
-  const listingsLine = listings
-    .map((l) => `${l.title} (${l.category}) in ${l.city}${l.priceFrom != null ? ` from $${l.priceFrom}` : ""}`)
+  const listingsLine = (localListings.length ? localListings : [])
+    .map((l) => `${l.title} (${l.category}) in ${l.city}, ${l.country}${l.priceFrom != null ? ` from $${l.priceFrom}` : ""}`)
     .join("; ");
 
   const system = buildWhatsAppHermesPrompt({
@@ -373,12 +403,15 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
 
   void extractAndSaveProfile(guest.id, user.id, `${convo}\nVoyara: ${reply}`);
 
-  const wantsPlan = /plan|trip|go to|visit|suggest|رحلة|روح|أروح|اقترح|برنامج|أيام|jordan|petra|amman|tokyo|دبي|عمان|البترا|الأردن/i.test(
-    text
-  );
+  const trivial = /^(احجز|book|\d+|ok|تمام|شكرا|thanks)?$/i.test(text.trim()) || text.trim().length < 8;
+  const wantsPlan =
+    !trivial &&
+    /plan|trip|go to|visit|suggest|رحلة|روح|أروح|اقترح|برنامج|أيام|jordan|petra|amman|tokyo|دبي|عمان|البترا|الأردن|ماعين|بحر|حمامات/i.test(
+      text
+    );
 
   let plan: ItineraryPlan | null = null;
-  if (wantsPlan || text.length > 12) {
+  if (wantsPlan) {
     try {
       const { text: jsonText } = await generateText({
         model: deepseek.chat(deepseekModel),
@@ -464,30 +497,25 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     if (pin?.lat != null && pin.lng != null) {
       await sendLocation(phone, pin.lat, pin.lng, pin.title, plan.destination);
     }
-    const dest = plan.destination.toLowerCase();
     const hotels = listings
       .filter((l) => l.category === "HOTEL")
-      .filter(
-        (l) =>
-          dest.includes(l.city.toLowerCase()) ||
-          l.city.toLowerCase().includes(dest.split(",")[0] || dest) ||
-          dest.includes(l.country.toLowerCase())
-      )
+      .filter((l) => listingFitsDestination(l, plan.destination || destGuess))
       .slice(0, 3);
-    const hotelBlock = formatHotelsWhatsApp(
-      hotels.length ? hotels : listings.filter((l) => l.category === "HOTEL").slice(0, 3),
-      plan.destination,
-      ar
-    );
+    const hotelBlock = formatHotelsWhatsApp(hotels, ar);
     if (hotelBlock) {
-      const ids = (hotels.length ? hotels : listings.filter((l) => l.category === "HOTEL").slice(0, 3)).map(
-        (h) => h.id
-      );
       await db.whatsAppGuest.update({
         where: { id: guest.id },
-        data: { lastOfferIds: ids },
+        data: { lastOfferIds: hotels.map((h) => h.id) },
       });
       await sendText(phone, hotelBlock, 1100);
+    } else {
+      await sendText(
+        phone,
+        ar
+          ? "ما في فندق شريك على Voyara بهالوجهة بعد. اكتب احجز إذا بدك نحجز أقرب إقامة بالأردن لما تتوفر، أو كمّل تخطيط الأماكن."
+          : "No Voyara partner hotel is live in this destination yet. Ask for another city, or keep planning places.",
+        1100
+      );
     }
   }
 

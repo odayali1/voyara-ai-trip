@@ -9,6 +9,8 @@ import {
   sendText,
 } from "@/lib/evolution";
 import { stageMessage } from "@/lib/sila-journey";
+import { inferDestination, listingFitsDestination } from "@/lib/destinations";
+import { ensureJordanPartnerHotels } from "@/lib/ensure-jordan-hotels";
 
 const DEMO_PHONE = process.env.SILA_DEMO_WHATSAPP || "962796917829";
 
@@ -31,7 +33,8 @@ export async function fulfillBooking(input: {
   const language = input.language === "en" ? "en" : "ar";
   const guestPhone =
     (input.guestPhone || "").replace(/\D/g, "") || DEMO_PHONE;
-  const dest = (input.destination || "").trim();
+  await ensureJordanPartnerHotels();
+  const dest = inferDestination(input.destination || "", input.destination);
 
   let listing = input.listingId
     ? await db.providerListing.findFirst({
@@ -40,41 +43,25 @@ export async function fulfillBooking(input: {
       })
     : null;
 
-  if (!listing) {
-    listing = await db.providerListing.findFirst({
-      where: {
-        status: "ACTIVE",
-        category: "HOTEL",
-        provider: { status: "APPROVED" },
-        ...(dest
-          ? {
-              OR: [
-                { city: { contains: dest, mode: "insensitive" } },
-                { country: { contains: dest, mode: "insensitive" } },
-                { title: { contains: dest, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
-      include: { provider: true },
-      orderBy: { updatedAt: "desc" },
-    });
+  if (listing && dest && !listingFitsDestination(listing, dest)) {
+    listing = null;
   }
 
   if (!listing) {
-    listing = await db.providerListing.findFirst({
+    const hotels = await db.providerListing.findMany({
       where: {
         status: "ACTIVE",
         category: "HOTEL",
         provider: { status: "APPROVED" },
       },
       include: { provider: true },
-      orderBy: { updatedAt: "desc" },
     });
+    listing =
+      (dest ? hotels.find((h) => listingFitsDestination(h, dest)) : null) || null;
   }
 
   if (!listing) {
-    return { ok: false as const, error: "No hotel listing on Voyara yet." };
+    return { ok: false as const, error: "No partner hotel in this destination." };
   }
 
   const now = new Date();

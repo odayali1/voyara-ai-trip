@@ -76,7 +76,10 @@ export async function POST(req: Request) {
       where: { phone: { endsWith: phone.slice(-9) } },
     }));
   const pickingHotel = Boolean(
-    guestRow?.lastOfferIds?.length && isStayChoice(text) && /^[1-5]$/.test(text.trim())
+    !stay &&
+      guestRow?.lastOfferIds?.length &&
+      isStayChoice(text) &&
+      /^[1-5]$/.test(text.trim())
   );
 
   // SILA numbered replies — skip if they are choosing a Voyara hotel offer
