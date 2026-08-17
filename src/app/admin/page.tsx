@@ -105,11 +105,33 @@ type ProviderRow = {
 export default function AdminPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
+  const [waGuests, setWaGuests] = useState<{
+    count: number;
+    guests: Array<{
+      id: string;
+      phone: string;
+      displayName: string | null;
+      language: string;
+      travelerType: string | null;
+      budgetBand: string | null;
+      interests: string[];
+      companions: string | null;
+      homeCity: string | null;
+      memorySummary: string | null;
+      lastDestination: string | null;
+      lastTripTitle: string | null;
+      messageCount: number;
+      lastSeenAt: string;
+      trips: Array<{ title: string; destination: string; bookedAt: string | null }>;
+      recentChat: Array<{ role: string; content: string }>;
+    }>;
+  } | null>(null);
 
   async function load() {
-    const [aRes, pRes] = await Promise.all([
+    const [aRes, pRes, gRes] = await Promise.all([
       fetch("/api/admin/analytics"),
       fetch("/api/admin/providers"),
+      fetch("/api/admin/guests"),
     ]);
     if (aRes.status === 401 || aRes.status === 403) {
       window.location.href = "/login?next=/admin";
@@ -117,6 +139,7 @@ export default function AdminPage() {
     }
     setAnalytics(await aRes.json());
     setProviders(await pRes.json());
+    if (gRes.ok) setWaGuests(await gRes.json());
   }
 
   useEffect(() => {
@@ -225,6 +248,74 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
+
+      <section className="mb-6 rounded-2xl border border-[var(--line)] bg-white/95 p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+              WhatsApp travelers · full CRM
+            </p>
+            <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
+              {waGuests?.count ?? 0} profiles built from chat
+            </h2>
+            <p className="text-xs text-[var(--muted)]">
+              First WhatsApp message = signup. Name, interests, memory, trips — admin sees everything.
+            </p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {(waGuests?.guests || []).length === 0 && (
+            <p className="text-sm text-[var(--muted)]">
+              No WhatsApp travelers yet. Have someone text the connected Voyara number.
+            </p>
+          )}
+          {(waGuests?.guests || []).map((g) => (
+            <article
+              key={g.id}
+              className="rounded-2xl border border-[var(--line)] bg-[var(--panel-solid)] p-4 text-sm"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="font-semibold text-[var(--ink)]">
+                    {g.displayName || "Name not learned yet"}
+                  </span>
+                  <span className="text-[var(--muted)]"> · {g.phone}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="outline">{g.language}</Badge>
+                  {g.travelerType && <Badge variant="demo">{g.travelerType}</Badge>}
+                  {g.budgetBand && <Badge variant="outline">{g.budgetBand}</Badge>}
+                  <Badge variant="outline">{g.messageCount} msgs</Badge>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                {(g.interests || []).join(" · ") || "Interests learning…"}
+                {g.companions ? ` · ${g.companions}` : ""}
+                {g.homeCity ? ` · from ${g.homeCity}` : ""}
+              </p>
+              {g.memorySummary && (
+                <p className="mt-2 text-xs leading-relaxed text-[var(--ink)]">{g.memorySummary}</p>
+              )}
+              <p className="mt-2 text-[11px] text-[var(--muted)]">
+                Last trip: {g.lastTripTitle || "—"} ({g.lastDestination || "—"}) ·{" "}
+                {g.trips?.[0]?.bookedAt ? "booked" : "planning"}
+              </p>
+              {(g.recentChat || []).length > 0 && (
+                <div className="mt-3 space-y-1 rounded-xl bg-black/[0.03] p-3 text-[11px] leading-relaxed">
+                  {g.recentChat.map((m, i) => (
+                    <p key={`${g.id}-c-${i}`}>
+                      <span className="font-semibold">
+                        {m.role === "user" ? "Guest" : "Voyara"}:
+                      </span>{" "}
+                      {m.content}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
 
       <div className="mb-6 rounded-2xl border border-[var(--line)] bg-white/90 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">

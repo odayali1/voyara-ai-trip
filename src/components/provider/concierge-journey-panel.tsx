@@ -23,6 +23,7 @@ type Stay = {
   id: string;
   guestName: string;
   guestPhone?: string | null;
+  guestPhoneMasked?: string | null;
   roomName: string;
   stage: string;
   language: string;
@@ -32,6 +33,11 @@ type Stay = {
   rating?: number | null;
   source?: string | null;
   tripLabel?: string | null;
+  guestIntel?: {
+    travelerType: string | null;
+    interests: string[];
+    lastDestination: string | null;
+  } | null;
   messages: Array<{ id: string; role: string; body: string; createdAt: string }>;
   requests: Array<{ id: string; title: string; status: string; stage?: string | null }>;
 };
@@ -345,10 +351,22 @@ export function ConciergeJourneyPanel() {
                     {selected.guestName}
                   </h3>
                   <p className="text-sm text-[var(--muted)]">
-                    {selected.roomName} · {selected.guestPhone || "no phone"} ·{" "}
+                    {selected.roomName} · {selected.guestPhoneMasked || "no phone"} ·{" "}
                     {new Date(selected.checkIn).toLocaleDateString()} →{" "}
                     {new Date(selected.checkOut).toLocaleDateString()}
                   </p>
+                  {selected.guestIntel && (
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      Guest vibe (limited):{" "}
+                      {[
+                        selected.guestIntel.travelerType,
+                        ...(selected.guestIntel.interests || []),
+                        selected.guestIntel.lastDestination,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "learning from stay"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button

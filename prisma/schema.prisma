@@ -130,6 +130,31 @@ model TravelerProfile {
   updatedAt    DateTime      @updatedAt
 }
 
+/** CRM + memory for travelers who arrive on WhatsApp (phone = signup). */
+model WhatsAppGuest {
+  id               String   @id @default(cuid())
+  phone            String   @unique
+  userId           String?  @unique
+  displayName      String?
+  language         String   @default("ar")
+  travelerType     String?
+  budgetBand       String?
+  interests        String[] @default([])
+  companions       String?
+  homeCity         String?
+  memorySummary    String?
+  lastDestination  String?
+  lastTripTitle    String?
+  lastOfferIds     String[] @default([])
+  messageCount     Int      @default(0)
+  firstSeenAt      DateTime @default(now())
+  lastSeenAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([lastSeenAt])
+}
+
 model ProviderProfile {
   id           String           @id @default(cuid())
   userId       String           @unique

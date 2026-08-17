@@ -82,11 +82,11 @@ async function ensureConciergeSeed(providerId: string) {
       },
     });
   } else {
-    // Keep demo WhatsApp number in sync for live demos
+    // Only keep the seeded demo guest on the connected demo number
     await db.conciergeStay.updateMany({
       where: {
         providerId,
-        OR: [{ guestPhone: null }, { guestPhone: { not: DEMO_PHONE } }],
+        guestName: "ليان أحمد",
         stage: { not: "DONE" },
       },
       data: { guestPhone: DEMO_PHONE },
@@ -124,15 +124,33 @@ export async function GET() {
   ]);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const phones = stays.map((s) => s.guestPhone).filter(Boolean) as string[];
+  const waGuests = phones.length
+    ? await db.whatsAppGuest.findMany({ where: { phone: { in: phones } } })
+    : [];
+  const byPhone = Object.fromEntries(waGuests.map((g) => [g.phone, g]));
 
   return NextResponse.json({
     brand: { name: "SILA", tagline: "The smarter way to stay" },
     stages: JOURNEY_STAGES,
     offers,
-    stays: stays.map((s) => ({
-      ...s,
-      guestUrl: `${appUrl}/stay/${s.token}`,
-    })),
+    stays: stays.map((s) => {
+      const g = s.guestPhone ? byPhone[s.guestPhone] : null;
+      const digits = (s.guestPhone || "").replace(/\D/g, "");
+      return {
+        ...s,
+        guestPhone: s.guestPhone,
+        guestPhoneMasked: digits.length >= 4 ? `••••${digits.slice(-4)}` : "••••",
+        guestUrl: `${appUrl}/stay/${s.token}`,
+        guestIntel: g
+          ? {
+              travelerType: g.travelerType,
+              interests: (g.interests || []).slice(0, 3),
+              lastDestination: g.lastDestination,
+            }
+          : null,
+      };
+    }),
   });
 }
 

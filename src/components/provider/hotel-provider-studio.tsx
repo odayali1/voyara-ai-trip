@@ -101,9 +101,25 @@ const ROOM_IMAGES = [
   "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80",
 ];
 
+type Arrival = {
+  stayId: string;
+  firstName: string;
+  phoneMasked: string;
+  room: string;
+  stage: string;
+  checkIn: string;
+  checkOut: string;
+  source: string | null;
+  tripCity: string | null;
+  vibe: string[];
+  travelerType: string | null;
+  openRequests: string[];
+};
+
 export function HotelProviderStudio() {
   const [profile, setProfile] = useState<Profile>(null);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [aiBusy, setAiBusy] = useState(false);
@@ -117,9 +133,10 @@ export function HotelProviderStudio() {
   );
 
   async function load() {
-    const [pRes, aRes] = await Promise.all([
+    const [pRes, aRes, arrRes] = await Promise.all([
       fetch("/api/providers"),
       fetch("/api/providers/analytics"),
+      fetch("/api/providers/arrivals"),
     ]);
     if (pRes.status === 401) {
       window.location.href = "/login?next=/provider";
@@ -127,6 +144,10 @@ export function HotelProviderStudio() {
     }
     setProfile(await pRes.json());
     if (aRes.ok) setAnalytics(await aRes.json());
+    if (arrRes.ok) {
+      const data = await arrRes.json();
+      setArrivals(data.arrivals || []);
+    }
     setLoading(false);
   }
 
@@ -435,6 +456,53 @@ export function HotelProviderStudio() {
                 </div>
               ))}
             </div>
+
+            <section className="rounded-3xl border border-[var(--line)] bg-white/90 p-5 shadow-sm">
+              <div className="mb-3 flex items-end justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">
+                    Arriving guests · limited intel
+                  </p>
+                  <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--ink)]">
+                    What the hotel needs — not the full chat
+                  </h2>
+                </div>
+                <Button size="sm" variant="secondary" onClick={() => setTab("concierge")}>
+                  Open SILA Journey
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {arrivals.length === 0 && (
+                  <p className="text-sm text-[var(--muted)]">
+                    No arrivals yet. When a traveler books on WhatsApp or the planner, they appear
+                    here with first name, room, dates, and trip vibe.
+                  </p>
+                )}
+                {arrivals.map((a) => (
+                  <article
+                    key={a.stayId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[var(--line)] bg-[var(--panel-solid)] px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <span className="font-semibold text-[var(--ink)]">{a.firstName}</span>
+                      <span className="text-[var(--muted)]">
+                        {" "}
+                        · {a.room} · {a.phoneMasked}
+                      </span>
+                      <p className="mt-1 text-xs text-[var(--muted)]">
+                        {[a.travelerType, a.tripCity, ...(a.vibe || [])]
+                          .filter(Boolean)
+                          .join(" · ") || "Vibe still learning"}
+                        {a.openRequests.length
+                          ? ` · ${a.openRequests.length} open request(s)`
+                          : ""}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{a.stage.replaceAll("_", " ")}</Badge>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             <div className="grid gap-6 xl:grid-cols-5">
               <section className="rounded-3xl border border-[var(--line)] bg-white/90 p-5 shadow-sm xl:col-span-3">

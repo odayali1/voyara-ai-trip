@@ -68,11 +68,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, skipped: true, reason: fromMe ? "fromMe" : "no-text" });
   }
 
-  const phone = number || DEMO_PHONE;
+  const phone = normalizeWhatsAppNumber(number) || number || DEMO_PHONE;
   const stay = await findStayForNumber(phone);
+  const guestRow =
+    (await db.whatsAppGuest.findUnique({ where: { phone } })) ||
+    (await db.whatsAppGuest.findFirst({
+      where: { phone: { endsWith: phone.slice(-9) } },
+    }));
+  const pickingHotel = Boolean(
+    guestRow?.lastOfferIds?.length && isStayChoice(text) && /^[1-5]$/.test(text.trim())
+  );
 
-  // Numbered SILA replies only when this phone already has a live stay
-  if (stay && isStayChoice(text)) {
+  // SILA numbered replies — skip if they are choosing a Voyara hotel offer
+  if (stay && isStayChoice(text) && !pickingHotel) {
     await db.conciergeMessage.create({
       data: {
         stayId: stay.id,
