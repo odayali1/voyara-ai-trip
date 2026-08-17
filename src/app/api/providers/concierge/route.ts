@@ -81,6 +81,16 @@ async function ensureConciergeSeed(providerId: string) {
         choices: msg.choices,
       },
     });
+  } else {
+    // Keep demo WhatsApp number in sync for live demos
+    await db.conciergeStay.updateMany({
+      where: {
+        providerId,
+        OR: [{ guestPhone: null }, { guestPhone: { not: DEMO_PHONE } }],
+        stage: { not: "DONE" },
+      },
+      data: { guestPhone: DEMO_PHONE },
+    });
   }
 }
 

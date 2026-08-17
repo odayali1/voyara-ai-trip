@@ -59,7 +59,7 @@ export default function GuestStayPage() {
     setStage(data.stay?.stage || stage);
   }
 
-  const lastHotel = [...messages].reverse().find((m) => m.role === "hotel");
+  const lastHotel = [...messages].reverse().find((m) => m.role === "hotel" && m.choices?.length);
   const choices = lastHotel?.choices || [];
 
   if (loading) {
@@ -72,35 +72,45 @@ export default function GuestStayPage() {
 
   return (
     <main
-      className="min-h-screen bg-[radial-gradient(circle_at_15%_0%,#0f9c8c55,transparent_40%),radial-gradient(circle_at_90%_10%,#ff8a4c44,transparent_35%),linear-gradient(165deg,#0f243a,#16324f_55%,#0b1a2a)] text-white"
+      className="min-h-screen bg-[#0f243a] text-[#f7f1e8]"
+      style={{ fontFamily: "var(--font-arabic), var(--font-body), system-ui, sans-serif" }}
       dir="auto"
     >
-      <div className="mx-auto flex min-h-screen max-w-lg flex-col">
-        <header className="border-b border-white/10 px-5 py-5 backdrop-blur-md">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(15,156,140,0.35),transparent_42%),radial-gradient(circle_at_100%_0%,rgba(255,138,76,0.22),transparent_38%)]" />
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col">
+        <header className="border-b border-white/10 bg-[#0f243a]/90 px-5 py-5 backdrop-blur">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#7dede0]">
             SILA · The smarter way to stay
           </p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl tracking-tight">
+          <h1
+            className="mt-1 text-3xl tracking-tight text-white"
+            style={{ fontFamily: "var(--font-display), Georgia, serif" }}
+          >
             {hotelName}
           </h1>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="mt-1 text-sm text-[#d7e4ef]">
             {guestName ? `أهلاً ${guestName}` : "Guest journey"}
             {stage ? ` · ${stage.replaceAll("_", " ").toLowerCase()}` : ""}
           </p>
-          <p className="mt-2 text-[12px] leading-relaxed text-white/55">
-            You are the guest. Tap a reply — the hotel sees it instantly on SILA Journey.
+          <p className="mt-2 text-[12px] leading-relaxed text-[#9db3c7]">
+            أنت الضيف — اختر رداً. الفندق يشوف طلبك فوراً على SILA Journey.
           </p>
         </header>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
+          {messages.length === 0 && (
+            <p className="rounded-2xl bg-white/10 px-4 py-3 text-sm text-[#d7e4ef]">
+              بانتظار رسالة الفندق… افتح SILA Journey واضغط Send stage on WhatsApp أو Next stage.
+            </p>
+          )}
           {messages.map((m) => (
             <div
               key={m.id}
               className={cn(
-                "max-w-[88%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-lg",
+                "max-w-[90%] whitespace-pre-wrap rounded-2xl px-3.5 py-3 text-[15px] leading-relaxed shadow-md",
                 m.role === "guest"
                   ? "ms-auto bg-[#0f9c8c] text-white"
-                  : "border border-white/10 bg-white/10 text-white/95"
+                  : "border border-[#d7e4ef]/25 bg-[#f7f1e8] text-[#0f243a]"
               )}
             >
               {m.body}
@@ -110,16 +120,15 @@ export default function GuestStayPage() {
         </div>
 
         {choices.length > 0 && stage !== "DONE" && (
-          <div className="border-t border-white/10 bg-[#0b1a2a]/80 p-4 backdrop-blur-md">
-            <p className="mb-2 text-xs text-white/55">اختر رد سريع · Quick reply</p>
+          <div className="border-t border-white/10 bg-[#0b1a2a] p-4">
+            <p className="mb-2 text-xs text-[#9db3c7]">اختر رد سريع · Quick reply</p>
             <div className="flex flex-wrap gap-2">
               {choices.map((c) => (
                 <Button
                   key={c}
                   size="sm"
                   disabled={sending}
-                  variant="secondary"
-                  className="rounded-full border-0 bg-[#ffe3c8] text-[#0f243a] hover:bg-white"
+                  className="rounded-full border-0 bg-[#ffe3c8] font-semibold text-[#0f243a] hover:bg-white"
                   onClick={() => void choose(c)}
                 >
                   {c}

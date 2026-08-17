@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Fraunces, Outfit } from "next/font/google";
+import { Cairo, Fraunces, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -11,6 +11,12 @@ const display = Fraunces({
 const body = Outfit({
   variable: "--font-body",
   subsets: ["latin"],
+});
+
+const arabic = Cairo({
+  variable: "--font-arabic",
+  subsets: ["arabic", "latin"],
+  weight: ["400", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -25,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} h-full`}>
+    <html lang="en" className={`${display.variable} ${body.variable} ${arabic.variable} h-full`}>
       <body className="min-h-full antialiased">
         {children}
         <Toaster theme="light" position="top-center" />
