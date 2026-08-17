@@ -132,11 +132,13 @@ export async function setInstanceWebhook(webhookUrl: string) {
   return evoFetch(`/webhook/set/${encodeURIComponent(name)}`, {
     method: "POST",
     body: JSON.stringify({
-      enabled: true,
-      url: webhookUrl,
-      webhookByEvents: false,
-      webhookBase64: false,
-      events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        webhookBase64: false,
+        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+      },
     }),
   });
 }
