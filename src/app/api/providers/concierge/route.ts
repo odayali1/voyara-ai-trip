@@ -8,6 +8,29 @@ import {
   stageMessage,
   type JourneyStageId,
 } from "@/lib/sila-journey";
+import {
+  evolutionConfigured,
+  formatWhatsAppStageMessage,
+  getConnectionState,
+  sendText,
+} from "@/lib/evolution";
+
+const DEMO_PHONE = process.env.SILA_DEMO_WHATSAPP || "962796917829";
+
+async function maybeSendWhatsApp(
+  phone: string | null | undefined,
+  guestName: string,
+  stage: JourneyStageId,
+  ar: boolean
+) {
+  if (!evolutionConfigured() || !phone) return { skipped: true as const };
+  const conn = await getConnectionState();
+  if (conn.state !== "open") return { skipped: true as const, state: conn.state };
+  const msg = stageMessage(stage, guestName, ar);
+  const text = formatWhatsAppStageMessage(msg.body, msg.choices);
+  const sent = await sendText(phone, text);
+  return { skipped: false as const, sent };
+}
 
 async function ensureConciergeSeed(providerId: string) {
   const offerCount = await db.conciergeOffer.count({ where: { providerId } });
@@ -38,7 +61,7 @@ async function ensureConciergeSeed(providerId: string) {
       data: {
         providerId,
         guestName: "ليان أحمد",
-        guestPhone: "+962700000001",
+        guestPhone: DEMO_PHONE,
         roomName: "Desert View King Room",
         checkIn,
         checkOut,
@@ -154,7 +177,8 @@ export async function POST(req: Request) {
         requests: true,
       },
     });
-    return NextResponse.json({ stay: updated });
+    const wa = await maybeSendWhatsApp(stay.guestPhone, stay.guestName, nxt, ar);
+    return NextResponse.json({ stay: updated, whatsapp: wa });
   }
 
   if (action === "resend_stage") {
@@ -193,7 +217,7 @@ export async function POST(req: Request) {
       data: {
         providerId: profile.id,
         guestName,
-        guestPhone: body.guestPhone || null,
+        guestPhone: body.guestPhone || DEMO_PHONE,
         roomName,
         checkIn,
         checkOut,
@@ -212,10 +236,17 @@ export async function POST(req: Request) {
         choices: msg.choices,
       },
     });
+    const wa = await maybeSendWhatsApp(
+      stay.guestPhone,
+      guestName,
+      "PRE_ARRIVAL",
+      language === "ar"
+    );
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     return NextResponse.json({
       stay,
       guestUrl: `${appUrl}/stay/${stay.token}`,
+      whatsapp: wa,
     });
   }
 
