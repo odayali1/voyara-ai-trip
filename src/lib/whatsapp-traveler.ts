@@ -5,9 +5,8 @@ import {
   deepseekModel,
   buildWhatsAppHermesPrompt,
   buildItineraryJsonPrompt,
-  buildProfileExtractPrompt,
 } from "@/lib/ai";
-import { parseItineraryFromText, extractJsonObject } from "@/lib/parse-itinerary";
+import { parseItineraryFromText } from "@/lib/parse-itinerary";
 import { detectReplyLanguage } from "@/lib/language";
 import type { ItineraryPlan } from "@/lib/itinerary-schema";
 import { sendImage, sendLocation, sendText } from "@/lib/evolution";
@@ -173,83 +172,10 @@ function formatHotelsWhatsApp(
   return `${title}\n${lines.join("\n")}${tail}`;
 }
 
-type Extracted = {
-  displayName?: string | null;
-  travelerType?: string | null;
-  budgetBand?: string | null;
-  interests?: string[];
-  companions?: string | null;
-  homeCity?: string | null;
-  lastDestination?: string | null;
-  memorySummary?: string | null;
-};
-
-async function extractAndSaveProfile(
-  guestId: string,
-  userId: string | null,
-  conversation: string
-) {
-  try {
-    const { text } = await generateText({
-      model: deepseek.chat(deepseekModel),
-      prompt: buildProfileExtractPrompt(conversation),
-    });
-    const raw = extractJsonObject(text) as Extracted;
-    const interests = Array.isArray(raw.interests)
-      ? raw.interests.map(String).slice(0, 8)
-      : [];
-    await db.whatsAppGuest.update({
-      where: { id: guestId },
-      data: {
-        displayName: raw.displayName || undefined,
-        travelerType: raw.travelerType || undefined,
-        budgetBand: raw.budgetBand || undefined,
-        interests: interests.length ? interests : undefined,
-        companions: raw.companions || undefined,
-        homeCity: raw.homeCity || undefined,
-        lastDestination: raw.lastDestination || undefined,
-        memorySummary: raw.memorySummary || undefined,
-      },
-    });
-    if (userId && raw.displayName) {
-      await db.user.update({
-        where: { id: userId },
-        data: { name: raw.displayName },
-      });
-      await db.travelerProfile.updateMany({
-        where: { userId },
-        data: {
-          travelerType:
-            raw.travelerType === "SOLO" ||
-            raw.travelerType === "COUPLE" ||
-            raw.travelerType === "FAMILY" ||
-            raw.travelerType === "FRIENDS"
-              ? raw.travelerType
-              : undefined,
-          budgetBand:
-            raw.budgetBand === "BUDGET" ||
-            raw.budgetBand === "MID" ||
-            raw.budgetBand === "LUXURY"
-              ? raw.budgetBand
-              : undefined,
-          interests,
-          homeCity: raw.homeCity || undefined,
-          onboarded: true,
-        },
-      });
-    }
-    return raw;
-  } catch (err) {
-    console.error("profile extract failed", err);
-    return null;
-  }
-}
-
 export async function handleTravelerWhatsApp(phone: string, text: string) {
   await ensureJordanPartnerHotels();
   const guest = await findOrCreateGuest(phone);
-  const isNew = guest.messageCount <= 1;
-  const user = await ensureWhatsAppUser(phone, guest.displayName);
+  const user = await ensureWhatsAppUser(phone);
 
   const trip = await findOrCreateTrip(phone, user.id);
   await db.chatMessage.create({
@@ -262,7 +188,6 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
       guestId: guest.id,
       preview: text.slice(0, 160),
       tripId: trip.id,
-      isNew,
     },
     user.id
   );
@@ -281,16 +206,6 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     `${text} ${guest.lastDestination || ""} ${trip.destination}`,
     guest.lastDestination || trip.destination
   );
-
-  if (isNew) {
-    await sendText(
-      phone,
-      ar
-        ? `أهلاً فيك في Voyara ✨\nأنا رفيق سفرك — زي صديق خبير بالأماكن.\nرقمّك صار ملفّك. احكيني وين نفسك تروح أو اطلب اقتراح.`
-        : `Welcome to Voyara ✨\nI'm your travel friend — expert, not a call center.\nThis number is now your profile. Tell me where you want to go.`,
-      200
-    );
-  }
 
   const pick = Number(text.trim());
   if (guest.lastOfferIds.length && pick >= 1 && pick <= guest.lastOfferIds.length) {
@@ -376,19 +291,9 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     .join("; ");
 
   const system = buildWhatsAppHermesPrompt({
-    name: guest.displayName,
-    phone,
-    travelerType: guest.travelerType,
-    budgetBand: guest.budgetBand,
-    interests: guest.interests,
-    companions: guest.companions,
-    homeCity: guest.homeCity,
-    memory: guest.memorySummary,
-    lastDestination: guest.lastDestination,
-    lastTripTitle: guest.lastTripTitle,
-    isNew,
     listingsLine,
     replyLanguage: lang,
+    lastDestination: destGuess || guest.lastDestination,
   });
 
   const { text: reply } = await generateText({
@@ -400,8 +305,6 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
   await db.chatMessage.create({
     data: { tripId: trip.id, role: "assistant", content: reply.slice(0, 8000) },
   });
-
-  void extractAndSaveProfile(guest.id, user.id, `${convo}\nVoyara: ${reply}`);
 
   const trivial = /^(احجز|book|\d+|ok|تمام|شكرا|thanks)?$/i.test(text.trim()) || text.trim().length < 8;
   const wantsPlan =
@@ -519,5 +422,5 @@ export async function handleTravelerWhatsApp(phone: string, text: string) {
     }
   }
 
-  return { ok: true, mode: plan ? "planned" : "chat", tripId: trip.id, guestId: guest.id, isNew };
+  return { ok: true, mode: plan ? "planned" : "chat", tripId: trip.id, guestId: guest.id };
 }

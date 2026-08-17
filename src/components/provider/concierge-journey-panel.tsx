@@ -203,6 +203,30 @@ export function ConciergeJourneyPanel() {
           <div className="rounded-xl bg-white/10 px-3 py-2">3. Guest replies 1/2/3</div>
           <div className="rounded-xl bg-white/10 px-3 py-2">4. Confirm → Next stage</div>
         </div>
+        <div className="mt-4">
+          <Button
+            size="sm"
+            className="bg-[#ffe3c8] text-[#0f243a] hover:bg-white"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const res = await fetch("/api/providers/whatsapp-reset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: wa?.demoGuestPhone }),
+              });
+              setBusy(false);
+              if (!res.ok) {
+                toast.error("Reset failed");
+                return;
+              }
+              toast.success("WhatsApp guest wiped - next text is a new traveler");
+              await load();
+            }}
+          >
+            Reset WhatsApp guest (test)
+          </Button>
+        </div>
         <a
           href="/how-it-works"
           className="mt-4 inline-block text-xs font-semibold text-[#ffe3c8] underline-offset-2 hover:underline"

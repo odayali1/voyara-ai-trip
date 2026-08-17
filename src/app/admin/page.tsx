@@ -118,6 +118,7 @@ export default function AdminPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [view, setView] = useState<"live" | "guests" | "intel" | "hotels">("live");
+  const [resetBusy, setResetBusy] = useState(false);
   const [waGuests, setWaGuests] = useState<{
     count: number;
     guests: Array<{
@@ -173,6 +174,39 @@ export default function AdminPage() {
     await load();
   }
 
+  async function resetWhatsApp(all = false) {
+    setResetBusy(true);
+    const res = await fetch("/api/admin/guests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(all ? { all: true } : {}),
+    });
+    setResetBusy(false);
+    if (!res.ok) {
+      toast.error("Reset failed");
+      return;
+    }
+    const data = await res.json();
+    toast.success(`WhatsApp test wiped (${data.guests || 0} guests, ${data.trips || 0} trips)`);
+    await load();
+  }
+
+  async function resetOne(phone: string) {
+    setResetBusy(true);
+    const res = await fetch("/api/admin/guests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    setResetBusy(false);
+    if (!res.ok) {
+      toast.error("Reset failed");
+      return;
+    }
+    toast.success(`Reset ${phone}`);
+    await load();
+  }
+
   if (!analytics) {
     return (
       <main className="dash-canvas flex min-h-screen items-center justify-center text-[var(--muted)]">
@@ -203,6 +237,13 @@ export default function AdminPage() {
         <>
           <LiveDot />
           {analytics.sampleMode && <Badge variant="demo">Sample polish</Badge>}
+          <Button
+            variant="secondary"
+            disabled={resetBusy}
+            onClick={() => void resetWhatsApp(true)}
+          >
+            {resetBusy ? "Resetting…" : "Reset WhatsApp test"}
+          </Button>
           <Button asChild variant="secondary">
             <Link href="/how-it-works">Walkthrough</Link>
           </Button>
@@ -307,14 +348,19 @@ export default function AdminPage() {
 
       {view === "guests" && (
         <Surface className="mt-6">
-          <div className="mb-5">
-            <Eyebrow>WhatsApp travelers · full CRM</Eyebrow>
-            <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
-              {waGuests?.count ?? 0} profiles built from chat
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              First message is signup. Admin sees name, interests, memory, and recent chat.
-            </p>
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <Eyebrow>WhatsApp testers</Eyebrow>
+              <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--ink)]">
+                {waGuests?.count ?? 0} chats
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Temporary: reset a number so the next WhatsApp feels brand new. Or text RESET.
+              </p>
+            </div>
+            <Button size="sm" variant="secondary" disabled={resetBusy} onClick={() => void resetWhatsApp(true)}>
+              Reset all WhatsApp
+            </Button>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             {(waGuests?.guests || []).length === 0 && (
@@ -328,15 +374,18 @@ export default function AdminPage() {
                       {(g.displayName || "?").slice(0, 1)}
                     </span>
                     <div>
-                      <p className="font-semibold text-[var(--ink)]">{g.displayName || "Name still learning"}</p>
+                      <p className="font-semibold text-[var(--ink)]">{g.displayName || g.phone}</p>
                       <p className="text-xs text-[var(--muted)]">{g.phone}</p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <Badge variant="outline">{g.language}</Badge>
-                    {g.travelerType && <Badge variant="demo">{g.travelerType}</Badge>}
-                    <Badge variant="outline">{g.messageCount} msgs</Badge>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={resetBusy}
+                    onClick={() => void resetOne(g.phone)}
+                  >
+                    Reset
+                  </Button>
                 </div>
                 <p className="mt-3 text-xs text-[var(--muted)]">
                   {(g.interests || []).join(" · ") || "Interests learning"}

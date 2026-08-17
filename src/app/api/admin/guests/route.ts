@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { assertApiRole } from "@/lib/auth-server";
 import { db } from "@/lib/db";
+import { resetAllWhatsAppSessions, resetWhatsAppSession } from "@/lib/whatsapp-reset";
 
 export const dynamic = "force-dynamic";
 
@@ -73,4 +74,19 @@ export async function GET() {
         })),
     })),
   });
+}
+
+export async function POST(req: Request) {
+  const gate = await assertApiRole(["ADMIN"]);
+  if ("error" in gate) {
+    return NextResponse.json({ error: gate.error }, { status: gate.status });
+  }
+  const body = (await req.json().catch(() => ({}))) as { phone?: string; all?: boolean };
+  if (body.all) {
+    const wiped = await resetAllWhatsAppSessions();
+    return NextResponse.json({ ok: true, ...wiped });
+  }
+  const phone = String(body.phone || process.env.SILA_DEMO_WHATSAPP || "962796917829");
+  const wiped = await resetWhatsAppSession(phone);
+  return NextResponse.json({ ok: true, ...wiped });
 }

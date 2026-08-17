@@ -6,6 +6,7 @@ import {
   sendText,
 } from "@/lib/evolution";
 import { handleTravelerWhatsApp } from "@/lib/whatsapp-traveler";
+import { looksLikeWhatsAppReset, resetWhatsAppSession } from "@/lib/whatsapp-reset";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -69,6 +70,16 @@ export async function POST(req: Request) {
   }
 
   const phone = normalizeWhatsAppNumber(number) || number || DEMO_PHONE;
+
+  if (looksLikeWhatsAppReset(text)) {
+    const wiped = await resetWhatsAppSession(phone);
+    const sent = await sendText(
+      phone,
+      "تم المسح. اكتب وجهتك الآن كأنك ضيف جديد — بدون ملف سابق."
+    );
+    return NextResponse.json({ ok: true, mode: "reset", wiped, sent: sent.ok });
+  }
+
   const stay = await findStayForNumber(phone);
   const guestRow =
     (await db.whatsAppGuest.findUnique({ where: { phone } })) ||
